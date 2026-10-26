@@ -1,0 +1,41 @@
+name: Task
+description: Planned work by the maintainers – refactoring, maintenance, documentation, or an accepted feature ready to implement.
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be different afterwards, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: One checkable statement per line, each observable by a user or in the code.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: dropdown
+    id: modules
+    attributes:
+      label: Affected modules
+      multiple: true
+      options:
+        - WallberryTheme
+        - WB-clock
+        - WB-weather
+        - Repository / tooling
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: What this issue deliberately does not cover.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Relevant files, related issues (#n for this fork, delightedCrow/WallberryTheme#n for upstream), links.
