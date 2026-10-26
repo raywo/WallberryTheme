@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed WB-weather's OpenWeatherMap provider failing with “Invalid API key” for every request: it now uses One Call 3.0 instead of the shut-down One Call 2.5, which needs the separate “One Call by Call” subscription on your key, free up to 1,000 calls per day but requiring a payment method; without it, WB-weather shows OpenWeatherMap's error message ([#10](https://github.com/raywo/WallberryTheme/issues/10)).
+- Fixed WB-clock's README naming the option `OtherCities`, which WB-clock ignores, instead of `otherCities`; WB-weather's README now tells upgraders from Dark Sky or One Call 2.5 to switch to Open-Meteo ([#12](https://github.com/raywo/WallberryTheme/issues/12)).
 - Fixed text with characters beyond basic Latin, such as “Łódź”, “Plzeň” or “Győr”, mixing Rubik with the fallback font; the bundled Rubik now covers Latin Extended-A, except Ţ and ţ, which Rubik lacks ([#23](https://github.com/raywo/WallberryTheme/issues/23)).
 - Fixed WallberryTheme no longer changing the photo after Unsplash answers with a response that is not JSON, such as an exceeded rate limit, or does not answer at all; it now shows the error and tries again ([#21](https://github.com/raywo/WallberryTheme/issues/21)).
 - Fixed WallberryTheme never loading a background photo when Electron is not installed ([#3](https://github.com/raywo/WallberryTheme/issues/3)).
