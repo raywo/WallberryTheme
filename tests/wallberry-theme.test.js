@@ -23,6 +23,25 @@ function translateError(translation, error) {
 
 const EN = readTranslation("translations/en.json");
 
+// Keys of MagicMirror²'s core translations (translations/en.json, v2.38.0).
+// MagicMirror²'s Translator looks a key up in the core translations before
+// the module's fallback file, so a module key from this list shows the
+// core text in every language without a module translation.
+const CORE_KEYS = [
+	"LOADING", "YESTERDAY", "TODAY", "TOMORROW", "RUNNING", "EMPTY", "WEEK",
+	"WEEK_SHORT", "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW",
+	"SW", "WSW", "W", "WNW", "NW", "NNW", "FEELS", "PRECIP_POP",
+	"PRECIP_AMOUNT", "MODULE_CONFIG_CHANGED", "MODULE_CONFIG_ERROR",
+	"MODULE_ERROR_MALFORMED_URL", "MODULE_ERROR_NO_CONNECTION",
+	"MODULE_ERROR_UNAUTHORIZED", "MODULE_ERROR_RATE_LIMITED",
+	"MODULE_ERROR_SERVER_ERROR", "MODULE_ERROR_CLIENT_ERROR",
+	"MODULE_ERROR_UNSPECIFIED", "NEWSFEED_NO_ITEMS",
+	"NEWSFEED_ARTICLE_UNAVAILABLE", "UPDATE_NOTIFICATION",
+	"UPDATE_NOTIFICATION_MODULE", "UPDATE_INFO_SINGLE", "UPDATE_INFO_MULTIPLE",
+	"UPDATE_NOTIFICATION_DONE", "UPDATE_NOTIFICATION_ERROR",
+	"UPDATE_NOTIFICATION_NEED-RESTART", "ALERT_TITLE", "ALERT_WELCOME"
+];
+
 /**
  * Stands in for the browser's XMLHttpRequest: records the listeners and
  * the request, and lets a test answer it.
@@ -156,6 +175,12 @@ describe("WallberryTheme translations", () => {
 	it("translates every key into every language", () => {
 		for (const file of Object.values(files)) {
 			assert.deepEqual(Object.keys(readTranslation(file)).sort(), Object.keys(EN).sort(), file);
+		}
+	});
+
+	it("uses no key of MagicMirror²'s core translations", () => {
+		for (const key of Object.keys(EN)) {
+			assert.ok(!CORE_KEYS.includes(key), key);
 		}
 	});
 

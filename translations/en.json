@@ -1,6 +1,6 @@
 {
 	"PHOTO_BY": "Photo by {author} on Unsplash",
-	"LOADING": "Loading background photo...",
+	"LOADING_PHOTO": "Loading background photo...",
 
 	"ERROR_TITLE": "Error Loading Background",
 	"ERROR_CONNECTION": "Could not connect to the Unsplash server.",
