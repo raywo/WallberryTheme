@@ -31,6 +31,7 @@ Module.register("WallberryTheme", {
 	fetchTimer: null,
 	img: null,
 	requestTimeout: 30 * 1000, // abort an Unsplash request that has not answered after 30 s
+	fadeMinHeight: 250, // px, the min-height of .wbfade in css/WallberryTheme.css
 
 	getStyles: function() {
 		return [
@@ -191,7 +192,7 @@ Module.register("WallberryTheme", {
 		this.img.style.opacity = this.config.backgroundOpacity;
 		this.img.onload = () => {
 			if (this.config.autoDimOn) {
-				this.photoData.isLight = WBColor.isImageLight(this.img);
+				this.photoData.needsDimming = WBColor.needsDimming(this.img, this.getBarAreas(this.img.naturalHeight || this.img.height));
 			}
 			this.updateDom(2000);
 			this.fetchTimer = setTimeout(() => {
@@ -199,9 +200,26 @@ Module.register("WallberryTheme", {
 			}, this.config.updateInterval);
 		};
 
-		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check if it's dark or light)
+		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
 		this.img.src = this.photoData.url;
 		this.photoElement = this.img;
+	},
+
+	// The areas of the photo behind the top and bottom bar, as rows in
+	// fractions of imageHeight, with the fade over each: the same heights
+	// as the fades, which the photo shows at its natural size from the
+	// top of the screen.
+	getBarAreas: function(imageHeight) {
+		const screenHeight = window.innerHeight;
+		return ["top", "bottom"].map((position) => {
+			const height = Math.max(this.fadeMinHeight, this.getFadeHeight("region " + position + " bar"));
+			const start = position === "top" ? 0 : screenHeight - height;
+			return {
+				start: start / imageHeight,
+				end: (start + height) / imageHeight,
+				fade: this.config.addBackgroundFade.includes(position) ? position : null
+			};
+		});
 	},
 
 	suspend: function() {
