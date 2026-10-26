@@ -61,10 +61,13 @@ to register their own filters (`translate`, `dayLabel`, `precipIcons`).
 - `node_helper.js` clears Electron's cache on start (`CLEAR_CACHE` →
   `ELECTRON_CACHE_CLEARED`); the module only fetches a photo after that
   reply, so the helper must always answer, also without Electron.
-- `colorHelpers.js` (`WBColor`) derives fade/background tints from Unsplash's
-  colour swatch and decides via canvas sampling whether an image is bright
-  (auto-dim). The image needs `crossOrigin = "Anonymous"` for that canvas
-  read to work.
+- The background and fade tints come from CSS: `setBackgroundTint()` sets
+  Unsplash's colour swatch as `--wb-swatch`, and `css/WallberryTheme.css`
+  derives the tints with OKLCH relative colour syntax, with neutral greys
+  for browsers without it. Do not convert colours in JavaScript.
+- `colorHelpers.js` (`WBColor`) decides via canvas sampling whether an
+  image is bright (auto-dim). The image needs `crossOrigin = "Anonymous"`
+  for that canvas read to work.
 - Functions passed into the template (`setBackgroundTint`, `getFadeHeight`)
   are called from within the `.njk` and touch the DOM directly.
 

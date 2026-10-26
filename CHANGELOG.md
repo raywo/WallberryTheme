@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Development continues in the fork [raywo/WallberryTheme](https://github.com/raywo/WallberryTheme), since [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme) is no longer updated. Install from there, and submit pull requests to `main`.
+- The tints of the background and of the top and bottom fades now look equally dark whatever the photo's colour; they are derived in CSS with OKLCH, and browsers without relative colour syntax show neutral dark fades ([#19](https://github.com/raywo/WallberryTheme/issues/19)).
 
 ### Fixed
 - Fixed text with characters beyond basic Latin, such as “Łódź”, “Plzeň” or “Győr”, mixing Rubik with the fallback font; the bundled Rubik now covers Latin Extended-A, except Ţ and ţ, which Rubik lacks ([#23](https://github.com/raywo/WallberryTheme/issues/23)).
