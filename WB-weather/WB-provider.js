@@ -122,14 +122,6 @@ class WBProvider {
 	}
 
 	/**
-	* Return true if your class uses the node_helper, false if not
-	* @type {Boolean}
-	*/
-	get usesNodeHelper() {
-		return false;
-	}
-
-	/**
 	* In milliseconds, how long to wait before trying a fetch again
 	* after a temporary error.
 	* @type {Number}
@@ -190,48 +182,6 @@ class WBProvider {
 }
 
 /**
-* This subclass represents a weather provider for WB-Weather that needs the node_helper.js function of MagicMirror to make its API call.
-* @class
-* @param {Object} config - The config object passed to the WB-weather module
-* @param {Object} delegate - The delegate that should be informed when the provider has a weather update. delegate must implement the function updateAvailable()
-*/
-class WBProviderWithHelper extends WBProvider {
-	constructor(config, delegate) {
-		super(config, delegate);
-	}
-
-	/**
-	* automatically sets this to true... because duh.
-	* @type {Boolean}
-	*/
-	get usesNodeHelper() {
-		return true;
-	}
-
-	/**
-	* REQUIRED SUBCLASS FUNCTIONS
-	* These MUST be implemented in your ProviderWithHelper subclass
-	*/
-
-	/**
-	* This should return an object filled with whatever data your helper function requires to do its fetch
-	* @returns {Object} AnyObject
-	*/
-	dataForHelper() {
-		throw new Error(`Weather Provider ${this.name} does not subclass the dataForHelper() method.`);
-	}
-
-	/**
-	* This is where you should process the data returned by your helper function, just as you would in a fetchWeather() function.
-	* @param {Object} data - The result from your helper function
-	*/
-	helperResponse(data) {
-		throw new Error(`Weather Provider ${this.name} does not subclass the helperResponse() method.`);
-	}
-}
-
-
-/**
 * A utility class for WB-weather.js to manage its weather providers
 */
 var WBProviderManager = {
@@ -245,10 +195,6 @@ var WBProviderManager = {
 			return new this.providers[config.providerName](config, delegate);
 		}
 		return null;
-	},
-
-	providerUsesHelper: function(providerName) {
-		return this.providers[providerName].usesNodeHelper;
 	},
 
 	hasProvider: function(providerName) {
