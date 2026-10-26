@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Development continues in the fork [raywo/WallberryTheme](https://github.com/raywo/WallberryTheme), since [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme) is no longer updated. Install from there, and submit pull requests to `main`.
 - The tints of the background and of the top and bottom fades now look equally dark whatever the photo's colour; they are derived in CSS with OKLCH, and browsers without relative colour syntax show neutral dark fades ([#19](https://github.com/raywo/WallberryTheme/issues/19)).
+- WB-clock now shows the date in the word order of your `language` unless you set `dateTimeFormat`, e.g. “Montag, 26. Oktober” instead of “Montag, Oktober 26.” for `"de"`; English shows “Monday, October 26” instead of “Monday, October 26th” ([#22](https://github.com/raywo/WallberryTheme/issues/22)).
 - `autoDimOn` now dims a photo when white text would be hard to read behind the top or bottom bar, by the APCA contrast of the photo under the fades in those areas, instead of counting light pixels over the whole photo; it reads a downscaled copy, which is quicker on a Raspberry Pi ([#20](https://github.com/raywo/WallberryTheme/issues/20)).
 
 ### Removed

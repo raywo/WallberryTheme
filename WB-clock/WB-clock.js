@@ -9,7 +9,7 @@ Module.register("WB-clock",{
 	defaults: {
 		timeFormat: config.timeFormat,
 		hourMinuteFormat: null,
-		dateTimeFormat: "dddd, MMMM Do",
+		dateTimeFormat: null,
 		localCityName: null,
 		otherCities: []
 	},
@@ -74,6 +74,50 @@ Module.register("WB-clock",{
 				this.config.hourMinuteFormat = "HH:mm";
 			}
 		}
+
+		// if the user hasn't set a custom date format, follow the locale's word order
+		if (!this.config.dateTimeFormat) {
+			this.config.dateTimeFormat = this.dateFormatFromLongDate(moment.localeData().longDateFormat("LL"));
+		}
+	},
+
+	/* Derives the date format from a locale's long date format (moment's
+	 * "LL"): the weekday, then the long date without its year. The year
+	 * goes together with the separator and words that belong to it, e.g.
+	 * ", YYYY", " [de] YYYY", "YYYY г." or "YYYY年"; endings glued to the
+	 * month or day, e.g. Finnish "MMMM[ta]" or an ordinal "D.", stay.
+	 */
+	dateFormatFromLongDate: function(longDateFormat) {
+		var parts = longDateFormat.match(/\[[^\]]*\]|[A-Za-z]+|[^[A-Za-z]/g) || [];
+		var isToken = (part) => /^[A-Za-z]+$/.test(part);
+		var year = parts.findIndex((part) => /^[Yy]+$/.test(part));
+
+		if (year !== -1) {
+			var previous = year - 1;
+			while (previous >= 0 && !isToken(parts[previous])) {
+				previous--;
+			}
+			var next = year + 1;
+			while (next < parts.length && !isToken(parts[next])) {
+				next++;
+			}
+
+			if (previous === -1) {
+				// year leads: drop it up to the next token
+				parts.splice(0, next);
+			} else {
+				// keep literals and ordinal dots glued to the previous token
+				var start = previous + 1;
+				while (start < year && (parts[start].startsWith("[") || parts[start] === ".")) {
+					start++;
+				}
+				// a trailing year takes everything after it along
+				var end = next === parts.length ? parts.length : year + 1;
+				parts.splice(start, end - start);
+			}
+		}
+
+		return "dddd, " + parts.join("").trim();
 	},
 
 	suspend: function() {
