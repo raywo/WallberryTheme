@@ -14,13 +14,26 @@ longer maintained; this fork carries the development on.
 
 ## Build, lint, test
 
-There is no `package.json`, no bundler, no linter config and no test suite.
-Files are loaded as-is by MagicMirror.
+There is no `package.json`, no bundler and no linter config. Files are
+loaded as-is by MagicMirror. The workflow in `.github/workflows/` runs lint
+and tests on every pull request.
 
 - Lint (syntax only): `git ls-files '*.js' | xargs -n1 node --check`
-- Tests: none. Verify a change by running it inside a MagicMirror
-  installation with the module configured in `config/config.js`, and say
-  in the report that it was not verified there if you could not.
+- Tests: `node --test "tests/**/*.test.js"` (Node's built-in runner, no
+  dependencies). Single file: `node --test tests/<name>.test.js`.
+- Module scripts are browser scripts that define globals; load them in a
+  test with `loadScripts()` from `tests/helpers/load-scripts.js`, which
+  stubs `Module`, `Log` and `config`. Do not turn them into ES modules or
+  add `module.exports` for testing – MagicMirror loads them as plain
+  scripts.
+- New logic gets tests. Keep it testable without a DOM, e.g. pixel
+  analysis as a function on an array rather than on a canvas.
+- What is visible on the mirror is verified by running it inside a
+  MagicMirror installation with the module configured in
+  `config/config.js`; say in the report that it was not verified there if
+  you could not.
+- Do not add an external test runner (Vitest, Jest): it needs a
+  `package.json`, a lockfile and dependency updates.
 
 Runtime dependencies come from the MagicMirror host, not from this repo:
 `Module`, `Log`, `config`, `nunjucks`, `moment.js`, `moment-timezone.js`,
