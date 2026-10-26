@@ -1,20 +1,16 @@
-.WB-weather .module-content .weather:before,
-.WB-weather .module-content .weather:after {
-  content: "";
-  display: table;
-}
-.WB-weather .module-content .weather:after {
-  clear: both;
-}
-.WB-weather .module-content .weather {
-  clear: both;
+/* The forecast keeps its columns in one row; the current weather takes the
+ * space left of it. Errors and the loading text stay stacked. */
+.WB-weather .module-content .weather--loaded {
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
 }
 
 .weather__current {
   text-align: left;
-  float: left;
-  width: 40%; }
+  flex: 1 1 auto; }
   .weather__current .current__temperature {
+    white-space: nowrap;
     font-size: 72px;
     padding-bottom: 15px; }
     .weather__current .current__temperature i {
@@ -25,15 +21,13 @@
     font-size: 28px; }
 
 .weather__weeklyforecast {
-  text-align: right;
-  float: right; }
-  .weather__weeklyforecast .forecast:first-child {
-    margin-left: 0px; }
+  display: flex;
+  flex: 0 0 auto;
+  gap: 40px; }
   .weather__weeklyforecast .forecast {
-    margin-left: 40px;
     text-align: center;
     font-size: 22px;
-    float: left; }
+    white-space: nowrap; }
     .weather__weeklyforecast .forecast .forecast__icon {
       font-size: 40px;
       margin: 10px 0px; }
