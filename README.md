@@ -111,6 +111,26 @@ The following properties of `WallberryTheme` can be configured. For more informa
 | `imageWidth`                | String or Number  | Use "auto" to use your screen's width, or specify a hardcoded width in pixels. <br><br> **Default value:** `"auto"`
 | `imageOptions`              | String  | See [Unsplash documentation](https://unsplash.com/documentation#dynamically-resizable-images) for supported parameters. <br><br> **Default value:** `"fit=crop"`
 
+## Text on coloured backgrounds
+
+WallberryTheme gives all text on the mirror a dark shadow (`text-shadow: -1px 2px 2px rgba(0, 0, 0, 0.6)` on `body`), so that white text stays legible on the photo. A text shadow is inherited, so it reaches the text of every other module as well. Text that sits on a coloured background of its own, such as a badge or a line number, does not need the shadow and shows it as a dark, smeared edge – most visibly on light colours.
+
+The theme cannot tell which text sits on its own background, so you switch the shadow off for these elements yourself. Add a rule to `MagicMirror/css/custom.css` that sets `text-shadow: none` on the element. For the line numbers of [MMM-PublicTransportHub](https://github.com/KristjanESPERANTO/MMM-PublicTransportHub):
+
+```css
+.mmm-pthub-line-sign {
+  text-shadow: none;
+}
+```
+
+Text elsewhere on the mirror keeps its shadow. For another module, use the class of the element that has the coloured background. To find it, open the developer tools of MagicMirror's window or browser and inspect the element. If the class is a generic one that other modules may use too, put the module's name in front of it – MagicMirror gives each module's wrapper the module's name as a class:
+
+```css
+.MMM-SomeModule .badge {
+  text-shadow: none;
+}
+```
+
 ## Contributing
 
 Contributions of all kinds (pull requests, bug reports, feature suggestions, documentation, etc.) are welcome and encouraged. Please report bugs and suggest features in this repository's [issues](https://github.com/raywo/WallberryTheme/issues).
