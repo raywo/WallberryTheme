@@ -179,12 +179,9 @@ Module.register("WallberryTheme", {
 			"&h=" + height +
 			"&" + this.config.imageOptions;
 
-		// Unsplash sends us a color swatch for the image
-		p.color = WBColor.rgb2Hsv(WBColor.hex2Rgb(photoData.color));
-		// using the hue from this color we can generate a new light shade for our gradients for our fades
-		p.light = WBColor.hsv2Rgb({h:p.color.h, s:20, v:30});
-		p.dark = WBColor.hsv2Rgb({h:p.color.h, s:40, v:7});
-		// TODO: the s/v values above are hardcoded because they seemed to work well in many cases, but it might be nice to have these be configurable
+		// Unsplash sends us a color swatch for the image; the CSS derives
+		// the tints of the background and the fades from its hue
+		p.color = photoData.color;
 		p.authorName = photoData.user.name;
 		this.photoData = p;
 
@@ -209,7 +206,7 @@ Module.register("WallberryTheme", {
 
 	suspend: function() {
 		Log.info("Suspending WallberryTheme...");
-		this.setBackgroundTint({r:0, g:0, b:0}); // set background back to black
+		this.setBackgroundTint(null); // set background back to black
 		clearTimeout(this.fetchTimer);
 	},
 
@@ -248,13 +245,21 @@ Module.register("WallberryTheme", {
 		return region.clientHeight + 70; // +70 for margin+padding
 	},
 
-	setBackgroundTint: function(tint) {
+	// swatch: the photo's colour swatch as a CSS colour, or null for black
+	setBackgroundTint: function(swatch) {
 		// setting the html/body background colors to the dark shade gives a much richer color to the image when it becomes transparent.
 		// We set the image to be transparent when we want to dim it (because the black background then comes through), but having a pure black background can cause the image to look greyish and washed out.
-		let darkBackground = `rgb(${tint.r}, ${tint.g}, ${tint.b})`;
-		let html = document.getElementsByTagName("html")[0];
-		let body = document.getElementsByTagName("body")[0];
-		body.style.backgroundColor = darkBackground;
-		html.style.backgroundColor = darkBackground;
+		// The fades read --wb-swatch too, through the tints in css/WallberryTheme.css.
+		let html = document.documentElement;
+		let body = document.body;
+		let background = "black";
+		if (swatch) {
+			html.style.setProperty("--wb-swatch", swatch);
+			background = "var(--wb-tint-dark)";
+		} else {
+			html.style.removeProperty("--wb-swatch");
+		}
+		body.style.backgroundColor = background;
+		html.style.backgroundColor = background;
 	},
 });

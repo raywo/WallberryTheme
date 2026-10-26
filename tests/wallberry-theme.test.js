@@ -205,3 +205,98 @@ describe("WallberryTheme translations", () => {
 		}
 	});
 });
+
+/**
+ * Stands in for an element's style: records the properties set on it.
+ */
+class FakeStyle {
+	constructor() {
+		this.properties = {};
+	}
+	setProperty(name, value) {
+		this.properties[name] = value;
+	}
+	removeProperty(name) {
+		delete this.properties[name];
+	}
+}
+
+/**
+ * Creates the WallberryTheme module with a document whose html and body
+ * record their styles, and a photo element that loads at once.
+ */
+function createModuleWithDocument() {
+	const html = {style: new FakeStyle()};
+	const body = {style: new FakeStyle()};
+	const scripts = loadScripts(["WallberryTheme.js"], {
+		document: {
+			documentElement: html,
+			body: body,
+			createElement: () => ({style: {}})
+		},
+		window: {innerWidth: 1080, innerHeight: 1920},
+		setTimeout: () => 1,
+		clearTimeout: () => {}
+	});
+	const definition = scripts.modules["WallberryTheme"];
+	const mod = Object.create(definition);
+	mod.config = {...definition.defaults, unsplashAccessKey: "key", autoDimOn: false};
+	mod.updateDom = () => {};
+	return {mod, html, body};
+}
+
+describe("WallberryTheme background tint", () => {
+	it("keeps the photo's colour swatch for the tints", () => {
+		const {mod} = createModuleWithDocument();
+		mod.processPhoto(PHOTO);
+		assert.equal(mod.photoData.color, "#336699");
+	});
+
+	it("tints the background with the swatch", () => {
+		const {mod, html, body} = createModuleWithDocument();
+		mod.setBackgroundTint("#336699");
+		assert.equal(html.style.properties["--wb-swatch"], "#336699");
+		assert.equal(html.style.backgroundColor, "var(--wb-tint-dark)");
+		assert.equal(body.style.backgroundColor, "var(--wb-tint-dark)");
+	});
+
+	it("resets the background to black on suspend", () => {
+		const {mod, html, body} = createModuleWithDocument();
+		mod.setBackgroundTint("#336699");
+		mod.suspend();
+		assert.equal(html.style.properties["--wb-swatch"], undefined);
+		assert.equal(html.style.backgroundColor, "black");
+		assert.equal(body.style.backgroundColor, "black");
+	});
+});
+
+describe("WallberryTheme tint styles", () => {
+	const css = fs.readFileSync(path.join(REPO_ROOT, "css/WallberryTheme.css"), "utf8");
+	const supportsStart = css.indexOf("@supports (color: oklch(from red l c h))");
+	const definedNames = (text) => [...text.matchAll(/(--wb-tint-[a-z-]+):/g)].map((match) => match[1]).sort();
+
+	it("derives every tint from the swatch where relative colour syntax works", () => {
+		assert.ok(supportsStart >= 0);
+		const supported = css.slice(supportsStart, css.indexOf("\n}", supportsStart));
+		const tints = [...supported.matchAll(/--wb-tint-[a-z-]+: (.*);/g)].map((match) => match[1]);
+		assert.ok(tints.length > 0);
+		for (const tint of tints) {
+			assert.match(tint, /^oklch\(from var\(--wb-swatch\) /, tint);
+		}
+	});
+
+	it("gives every tint a fallback for browsers without relative colour syntax", () => {
+		const fallback = css.slice(0, supportsStart);
+		const supported = css.slice(supportsStart, css.indexOf("\n}", supportsStart));
+		assert.deepEqual(definedNames(fallback), definedNames(supported));
+	});
+
+	it("defines every tint the styles and the module use", () => {
+		const module = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.js"), "utf8");
+		const used = [...(css + module).matchAll(/var\((--wb-tint-[a-z-]+)\)/g)].map((match) => match[1]);
+		assert.ok(used.length > 0);
+		for (const name of used) {
+			assert.ok(definedNames(css.slice(0, supportsStart)).includes(name), name);
+		}
+	});
+});
