@@ -57,21 +57,19 @@ body {
   padding: 0px 5px;
 }
 
-  /* rubik-300 - latin */
+/* rubik variable, weights 300-400 - latin, latin-ext
+ * Built from Rubik[wght].ttf of github.com/google/fonts (ofl/rubik) with
+ * fontTools:
+ *   fonttools varLib.instancer "Rubik[wght].ttf" wght=300:400 -o rubik.ttf
+ *   pyftsubset rubik.ttf --layout-features='*' --flavor=woff2
+ *     --output-file=rubik-latin-ext.woff2 --unicodes="U+0000-036F,
+ *     U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2000-206F,U+2074,U+20A0-20C4,
+ *     U+2113,U+2122,U+2191,U+2193,U+2212,U+2215,U+2C60-2C7F,U+A720-A7FF,
+ *     U+FEFF,U+FFFD"
+ * No local() source: an installed older Rubik lacks the latin-ext glyphs. */
 @font-face {
   font-family: 'Rubik';
   font-style: normal;
-  font-weight: 300;
-  src: local('Rubik Light'), local('Rubik-Light'),
-       url('../fonts/rubik-v7-latin-300.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
-       url('../fonts/rubik-v7-latin-300.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
-}
-/* rubik-regular - latin */
-@font-face {
-  font-family: 'Rubik';
-  font-style: normal;
-  font-weight: 400;
-  src: local('Rubik'), local('Rubik-Regular'),
-       url('../fonts/rubik-v7-latin-regular.woff2') format('woff2'), /* Chrome 26+, Opera 23+, Firefox 39+ */
-       url('../fonts/rubik-v7-latin-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+  font-weight: 300 400;
+  src: url('../fonts/rubik-latin-ext.woff2') format('woff2');
 }
