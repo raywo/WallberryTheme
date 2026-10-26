@@ -1,0 +1,11 @@
+{
+	"PHOTO_BY": "Foto von {author} auf Unsplash",
+	"LOADING": "Hintergrundfoto wird geladen …",
+
+	"ERROR_TITLE": "Fehler beim Laden des Hintergrunds",
+	"ERROR_CONNECTION": "Keine Verbindung zum Unsplash-Server.",
+	"ERROR_TIMEOUT": "Der Unsplash-Server hat nicht innerhalb von {seconds} Sekunden geantwortet.",
+	"ERROR_RATE_LIMIT": "Das Anfragelimit von Unsplash ist überschritten; Demo-Zugangsschlüssel erlauben 50 Anfragen pro Stunde. Das Modul versucht es später erneut.",
+	"ERROR_API": "Die Unsplash-API meldet den Fehler „{errors}“",
+	"ERROR_STATUS": "Unsplash-Fehler: {status}, {statusText}"
+}
