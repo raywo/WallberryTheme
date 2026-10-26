@@ -19,7 +19,13 @@ modules: [
 ]
 ````
 
-Without `providerName`, WB-weather shows an error naming the possible values instead of the weather. **If you upgrade from an earlier version** and your config has no `providerName`, add `providerName: "openweathermap"` to keep OpenWeatherMap, or replace your `apiKey` with `providerName: "openmeteo"` to use Open-Meteo without a key.
+Without `providerName`, WB-weather shows an error naming the possible values instead of the weather.
+
+### Upgrading from an earlier version
+
+ * **Your config has no `providerName`:** add `providerName: "openweathermap"` to keep OpenWeatherMap, which needs a new subscription (see the last point), or replace your `apiKey` with `providerName: "openmeteo"` to use Open-Meteo without a key.
+ * **You used Dark Sky** (`providerName: "darksky"` or `darkSkyApiKey`): Apple has shut down Dark Sky's API, and WB-weather no longer supports it. Replace both with `providerName: "openmeteo"`; Open-Meteo needs no key.
+ * **You used OpenWeatherMap before One Call 3.0:** WB-weather no longer calls the shut-down One Call 2.5, and your key needs the "One Call by Call" subscription for One Call 3.0 (see [OpenWeatherMap](#openweathermap) below). Without it, WB-weather shows OpenWeatherMap's error message instead of the weather. Subscribe, or set `providerName: "openmeteo"` and remove your `apiKey`.
 
 ## General Configuration Options
 
