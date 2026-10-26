@@ -4,7 +4,7 @@ The `WallberryTheme` module re-themes [MagicMirror²](https://github.com/MagicMi
 
 The WallberryTheme also comes packaged with two companion modules for displaying the time (`WB-clock`) and weather (`WB-weather`).
 
-This repository is the maintained continuation of [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme), which Jess Coulter created and which is no longer maintained. It is maintained by [Ray Wojciechowski](https://github.com/raywo).
+This is a fork of [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme), created by Jess Coulter. The original repository is no longer updated; this fork picks up fixes and updates on a best-effort basis.
 
  **REQUIRED API KEYS:**
 
@@ -117,7 +117,7 @@ Contributions of all kinds (pull requests, bug reports, feature suggestions, doc
 
 If you're enjoying the WallberryTheme:
 
-* **:coffee: [Buy me a coffee](https://buymeacoffee.com/raywo) :coffee:** to support the maintenance of this fork.
+* **:coffee: [Buy me a coffee](https://buymeacoffee.com/raywo) :coffee:** if the fixes in this fork are useful to you.
 * Thank Jess Coulter, who created the WallberryTheme, with a [coffee on Ko-fi](https://ko-fi.com/delightedcrow).
 
 Huge thanks to everyone who has contributed and made the WallberryTheme better!

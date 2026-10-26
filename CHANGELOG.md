@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
-- WallberryTheme is now maintained in [raywo/WallberryTheme](https://github.com/raywo/WallberryTheme), the continuation of the no longer maintained [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme). Install from there, and submit pull requests to `main`.
+- Development continues in the fork [raywo/WallberryTheme](https://github.com/raywo/WallberryTheme), since [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme) is no longer updated. Install from there, and submit pull requests to `main`.
 
 ### Fixed
 - Fixed [issue 36](https://github.com/delightedCrow/WallberryTheme/issues/36) where the openweathermap provider for WB-weather wasn't properly using the language setting.
