@@ -38,7 +38,7 @@ and tests on every pull request.
 Runtime dependencies come from the MagicMirror host, not from this repo:
 `Module`, `Log`, `config`, `nunjucks`, `moment.js`, `moment-timezone.js`,
 `font-awesome.css`, `weather-icons.css` (browser side) and `node_helper`,
-`electron`, `node-fetch` (node side). Do not add a dependency that the host
+`electron` (node side). Do not add a dependency that the host
 does not ship without also adding a way to install it.
 
 ## Architecture
@@ -75,12 +75,11 @@ to register their own filters (`translate`, `dayLabel`, `precipIcons`).
 
 Pluggable provider/template design:
 
-- `WB-provider.js` – base classes `WBProvider` (fetches in the browser) and
-  `WBProviderWithHelper` (fetches via `node_helper.js`), plus the
-  `WBProviderManager` registry.
+- `WB-provider.js` – base class `WBProvider`, which fetches in the
+  browser, plus the `WBProviderManager` registry. WB-weather has no
+  `node_helper.js`.
 - `providers/WB-<name>.js` – one subclass per provider; must end with
-  `WBProviderManager.register("<name>", Class)`. Helper-based providers add
-  `providers/WB-<name>-helper.js`, which `node_helper.js` `require`s by name.
+  `WBProviderManager.register("<name>", Class)`.
 - `WB-weather.js` loads only the configured provider's script via
   `getScripts()`, selected by `providerName`.
 - Providers fill `WBWeather`/`WBForecast` objects (`WB-dataObjects.js`) and

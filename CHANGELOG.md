@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The tints of the background and of the top and bottom fades now look equally dark whatever the photo's colour; they are derived in CSS with OKLCH, and browsers without relative colour syntax show neutral dark fades ([#19](https://github.com/raywo/WallberryTheme/issues/19)).
 - `autoDimOn` now dims a photo when white text would be hard to read behind the top or bottom bar, by the APCA contrast of the photo under the fades in those areas, instead of counting light pixels over the whole photo; it reads a downscaled copy, which is quicker on a Raspberry Pi ([#20](https://github.com/raywo/WallberryTheme/issues/20)).
 
+### Removed
+- **Breaking:** Removed WB-weather's Dark Sky provider, whose API Apple shut down in 2023, and the fallback that switched configs without `apiKey` to Dark Sky; a config with `providerName: "darksky"` or `darkSkyApiKey` now shows an error instead of the weather, so switch it to `providerName: "openweathermap"` with an OpenWeatherMap `apiKey`. WB-weather no longer has a `node_helper.js`, and the provider base class `WBProviderWithHelper` is gone ([#11](https://github.com/raywo/WallberryTheme/issues/11)).
+
 ### Fixed
 - Fixed text with characters beyond basic Latin, such as “Łódź”, “Plzeň” or “Győr”, mixing Rubik with the fallback font; the bundled Rubik now covers Latin Extended-A, except Ţ and ţ, which Rubik lacks ([#23](https://github.com/raywo/WallberryTheme/issues/23)).
 - Fixed WallberryTheme no longer changing the photo after Unsplash answers with a response that is not JSON, such as an exceeded rate limit, or does not answer at all; it now shows the error and tries again ([#21](https://github.com/raywo/WallberryTheme/issues/21)).

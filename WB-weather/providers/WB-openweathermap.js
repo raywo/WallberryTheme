@@ -49,7 +49,7 @@ class WBOpenWeatherMap extends WBProvider {
 		var w = new WBWeather();
 		w.temp = data.current.temp;
 		w.wicon = `wi-owm-${data.current.weather[0].id}`;
-		// TODO: be nice to make this more like Dark Sky's long description.
+		// TODO: be nice to make this a longer, more detailed description.
 		w.longDescription = data.current.weather[0].description;
 
 		w.forecast = data.daily.slice(0,this.daysToForecast).map((daily) => {

@@ -15,8 +15,7 @@ This is a fork of [delightedCrow/WallberryTheme](https://github.com/delightedCro
 
 The [WB-weather](WB-weather/README.md) companion module has now been completely refactored with some great new features:
 
-- **OpenWeatherMap is now the default weather provider** (RIP DarkSky, you were taken too soon).
-- WB-weather **still supports DarkSky** as a provider for existing users with API keys, but expect the API to be shuttered officially by Apple by end of 2021.
+- **OpenWeatherMap is now the default weather provider.**
 - New weather providers can be easily integrated by subclassing WB-weather's new `WBProvider` class.
 - New config option for choosing which display template to use, so you can easily change how the weather is displayed by adding new templates.
 
