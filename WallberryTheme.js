@@ -30,6 +30,8 @@ Module.register("WallberryTheme", {
 	photoError: null,
 	fetchTimer: null,
 	img: null,
+	requestTimeout: 30 * 1000, // abort an Unsplash request that has not answered after 30 s
+	fadeMinHeight: 250, // px, the min-height of .wbfade in css/WallberryTheme.css
 
 	getStyles: function() {
 		return [
@@ -40,6 +42,15 @@ Module.register("WallberryTheme", {
 
 	getScripts: function() {
 		return ["colorHelpers.js"];
+	},
+
+	// English comes first: MagicMirror falls back to the first file for a
+	// language without a translation.
+	getTranslations: function() {
+		return {
+			en: "translations/en.json",
+			de: "translations/de.json"
+		};
 	},
 
 	start: function() {
@@ -93,30 +104,66 @@ Module.register("WallberryTheme", {
 		var mod = this;
 
 		req.addEventListener("load", function() {
-			const unsplashData = JSON.parse(this.responseText);
-			if (this.status === 200) {
-				mod.processPhoto(unsplashData);
-			} else if ("errors" in unsplashData) {
-				mod.processError(`The Unsplash API returned the error "${unsplashData["errors"].join(", ")}"`);
+			const result = mod.parseUnsplashResponse(
+				this.status,
+				this.statusText,
+				this.responseText,
+				this.getResponseHeader("X-Ratelimit-Remaining")
+			);
+			if (result.photo) {
+				mod.processPhoto(result.photo);
 			} else {
-				mod.processError(`Unsplash Error: ${this.status}, ${this.statusText}`);
-				Log.error("Unsplash Error: ", this.responseText);
+				Log.error("Unsplash Error: ", this.status, this.responseText);
+				mod.processError(result.error);
 			}
 		});
 
 		req.addEventListener("error", function() {
 			// most likely an internet connection issue
-			mod.processError("Could not connect to the Unsplash server.");
+			mod.processError({key: "ERROR_CONNECTION"});
+		});
+
+		req.addEventListener("timeout", function() {
+			mod.processError({key: "ERROR_TIMEOUT", variables: {seconds: mod.requestTimeout / 1000}});
 		});
 
 		req.open("GET", url);
+		req.timeout = this.requestTimeout;
 		req.setRequestHeader("Accept-Version", "v1");
 		req.send();
 	},
 
-	processError: function(errorText) {
-		// TODO: might want to add support for translating error messages
-		this.photoError = errorText;
+	// Turns an Unsplash response into either {photo} or {error}. Never
+	// throws: a response whose body is not JSON, e.g. a rate limit
+	// message or a proxy's error page, must still end in an error that
+	// schedules the next fetch. An error is a translation key with its
+	// variables, translated when the template renders it.
+	parseUnsplashResponse: function(status, statusText, responseText, rateLimitRemaining) {
+		let data = null;
+		try {
+			data = JSON.parse(responseText);
+		} catch (e) {
+			data = null;
+		}
+		const isObject = data !== null && typeof data === "object";
+
+		if (status === 200 && isObject && data.urls) {
+			return {photo: data};
+		}
+		// The header is only readable if Unsplash exposes it to the
+		// browser, so the body text serves as a second hint.
+		if (rateLimitRemaining === "0" || (status === 403 && /rate limit/i.test(responseText))) {
+			return {error: {key: "ERROR_RATE_LIMIT"}};
+		}
+		if (isObject && Array.isArray(data.errors)) {
+			return {error: {key: "ERROR_API", variables: {errors: data.errors.join(", ")}}};
+		}
+		return {error: {key: "ERROR_STATUS", variables: {status: status, statusText: statusText}}};
+	},
+
+	// error: {key, variables} of a message in translations/
+	processError: function(error) {
+		this.photoError = error;
 		this.updateDom();
 		this.fetchTimer = setTimeout(() => {
 			this.fetchPhoto();
@@ -133,12 +180,9 @@ Module.register("WallberryTheme", {
 			"&h=" + height +
 			"&" + this.config.imageOptions;
 
-		// Unsplash sends us a color swatch for the image
-		p.color = WBColor.rgb2Hsv(WBColor.hex2Rgb(photoData.color));
-		// using the hue from this color we can generate a new light shade for our gradients for our fades
-		p.light = WBColor.hsv2Rgb({h:p.color.h, s:20, v:30});
-		p.dark = WBColor.hsv2Rgb({h:p.color.h, s:40, v:7});
-		// TODO: the s/v values above are hardcoded because they seemed to work well in many cases, but it might be nice to have these be configurable
+		// Unsplash sends us a color swatch for the image; the CSS derives
+		// the tints of the background and the fades from its hue
+		p.color = photoData.color;
 		p.authorName = photoData.user.name;
 		this.photoData = p;
 
@@ -148,7 +192,7 @@ Module.register("WallberryTheme", {
 		this.img.style.opacity = this.config.backgroundOpacity;
 		this.img.onload = () => {
 			if (this.config.autoDimOn) {
-				this.photoData.isLight = WBColor.isImageLight(this.img);
+				this.photoData.needsDimming = WBColor.needsDimming(this.img, this.getBarAreas(this.img.naturalHeight || this.img.height));
 			}
 			this.updateDom(2000);
 			this.fetchTimer = setTimeout(() => {
@@ -156,14 +200,35 @@ Module.register("WallberryTheme", {
 			}, this.config.updateInterval);
 		};
 
-		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check if it's dark or light)
+		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
 		this.img.src = this.photoData.url;
 		this.photoElement = this.img;
 	},
 
+	// The areas of the photo behind the top and bottom bar, as rows in
+	// fractions of imageHeight: the rows of the bar region, where the text
+	// sits, and the rows of its fade, which is taller. The photo is shown
+	// at its natural size from the top of the screen.
+	getBarAreas: function(imageHeight) {
+		const screenHeight = window.innerHeight;
+		return ["top", "bottom"].map((position) => {
+			const regionClassName = "region " + position + " bar";
+			const region = document.getElementsByClassName(regionClassName)[0].getBoundingClientRect();
+			const fadeHeight = Math.max(this.fadeMinHeight, this.getFadeHeight(regionClassName));
+			const fadeStart = position === "top" ? 0 : screenHeight - fadeHeight;
+			return {
+				start: region.top / imageHeight,
+				end: region.bottom / imageHeight,
+				fade: this.config.addBackgroundFade.includes(position) ? position : null,
+				fadeStart: fadeStart / imageHeight,
+				fadeEnd: (fadeStart + fadeHeight) / imageHeight
+			};
+		});
+	},
+
 	suspend: function() {
 		Log.info("Suspending WallberryTheme...");
-		this.setBackgroundTint({r:0, g:0, b:0}); // set background back to black
+		this.setBackgroundTint(null); // set background back to black
 		clearTimeout(this.fetchTimer);
 	},
 
@@ -184,8 +249,8 @@ Module.register("WallberryTheme", {
 			trimBlocks: true,
 			lstripBlocks: true
 		});
-		this._nunjucksEnvironment.addFilter("translate", function(str) {
-			return self.translate(str);
+		this._nunjucksEnvironment.addFilter("translate", function(str, variables) {
+			return self.translate(str, variables);
 		});
 
 		return this._nunjucksEnvironment;
@@ -202,13 +267,21 @@ Module.register("WallberryTheme", {
 		return region.clientHeight + 70; // +70 for margin+padding
 	},
 
-	setBackgroundTint: function(tint) {
+	// swatch: the photo's colour swatch as a CSS colour, or null for black
+	setBackgroundTint: function(swatch) {
 		// setting the html/body background colors to the dark shade gives a much richer color to the image when it becomes transparent.
 		// We set the image to be transparent when we want to dim it (because the black background then comes through), but having a pure black background can cause the image to look greyish and washed out.
-		let darkBackground = `rgb(${tint.r}, ${tint.g}, ${tint.b})`;
-		let html = document.getElementsByTagName("html")[0];
-		let body = document.getElementsByTagName("body")[0];
-		body.style.backgroundColor = darkBackground;
-		html.style.backgroundColor = darkBackground;
+		// The fades read --wb-swatch too, through the tints in css/WallberryTheme.css.
+		let html = document.documentElement;
+		let body = document.body;
+		let background = "black";
+		if (swatch) {
+			html.style.setProperty("--wb-swatch", swatch);
+			background = "var(--wb-tint-dark)";
+		} else {
+			html.style.removeProperty("--wb-swatch");
+		}
+		body.style.backgroundColor = background;
+		html.style.backgroundColor = background;
 	},
 });

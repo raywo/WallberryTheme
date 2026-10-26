@@ -27,7 +27,7 @@ The following properties can be configured, all are optional:
 | Option             | Type    | Description
 | -------------------|---------| -----------
 | `timeFormat`       | String  | Use 12 or 24 hour format. <br><br> **Possible values:** `12` or `24` <br> **Default value:** uses value of _config.timeFormat_
-| `dateTimeFormat`   | String  | Configure the date format as you like. <br><br> **Possible values:** [Docs](http://momentjs.com/docs/#/displaying/format/) <br> **Default value:** `"dddd, MMMM Do"`
+| `dateTimeFormat`   | String  | Configure the date format as you like. <br><br> **Possible values:** [Docs](http://momentjs.com/docs/#/displaying/format/) <br> **Default value:** the weekday followed by the day and month in the order of your `language`, e.g. "Monday, October 26" for `"en"` and "Montag, 26. Oktober" for `"de"`
 | `hourMinuteFormat` | String  | Configure clock format as you like. <br><br> **Possible values:** [Docs](http://momentjs.com/docs/#/displaying/format/) <br> **Default value:** `"h:mm"` for 12 hour format, `"HH:mm"` for 24 hour format
 | `localCityName`    | String  | The name of your local city to displayed above the local clock. <br><br> **Default value:** `""` (None)
 | `OtherCities`      | Array   | A list of other city names (or whatever labels you like) and their timezones (see module config example above). For more information on which timezones are available [check here](https://momentjs.com/timezone/docs/#/data-formats/packed-format/).

@@ -34,12 +34,11 @@ Module.register("WB-weather", {
 	},
 
 	getScripts: function() {
-		let provider = this.hasPre3Config() ? "darksky" : this.config.providerName;
 		return [
 			"moment.js",
 			"WB-dataObjects.js",
 			"WB-provider.js",
-			this.file("providers/WB-" + provider + ".js")
+			this.file("providers/WB-" + this.config.providerName + ".js")
 		];
 	},
 
@@ -69,11 +68,6 @@ Module.register("WB-weather", {
 
 		this.addNunjuckFilters();
 
-		if (this.hasPre3Config()) {
-			// make the update a little smoother for the people who updated from a pre-3.0 version of WB-weather and are still using darksky
-			this.config.providerName = "darksky";
-			this.config.apiKey = this.config.darkSkyApiKey;
-		}
 		this.provider = WBProviderManager.initialize(this.config, this);
 		if (this.provider == null) {
 			let message = `Cannot find a weather provider named "${this.config.providerName}". Please check your config settings.`
@@ -119,30 +113,8 @@ Module.register("WB-weather", {
 		}
 
 		this.fetchTimer = setTimeout(() => {
-			if (this.provider.usesNodeHelper) {
-				this.sendSocketNotification("FETCH_DATA", {providerName: this.provider.name, data: this.provider.dataForHelper()});
-			} else {
-				this.provider.fetchWeather();
-			}
+			this.provider.fetchWeather();
 		}, nextFetch);
-	},
-
-	socketNotificationReceived: function(notification, payload) {
-		switch(notification) {
-			case "DATA_AVAILABLE":
-				// TODO: check if this helper response is for this instance of WB-weather - pretty sure we can have multiple WB-weather instances but only one node_helper for all them.
-				this.provider.helperResponse(payload);
-				break;
-		}
-	},
-
-	hasPre3Config: function() {
-		// back before 3.0 DarkSky was the default provider and the
-		// config option for its api key was darkSkyApiKey
-		if (this.config.apiKey == null && this.config.darkSkyApiKey !==null) {
-			return true;
-		}
-		return false;
 	},
 
 	nunjucksEnvironment: function() {

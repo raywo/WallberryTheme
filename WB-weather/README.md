@@ -43,8 +43,10 @@ These general options should honored the same across all weather providers. Spec
 
 OpenWeatherMap is currently the default weather provider for WB-weather.
 
- * **Sign up for a free API key at [https://openweathermap.org/api](https://openweathermap.org/api)**.
- * Free accounts are limited to 60 API calls/minute.
+ * **Sign up for an API key at [https://openweathermap.org/api](https://openweathermap.org/api)**.
+ * **Your key needs the "One Call by Call" subscription.** WB-weather uses the [One Call API 3.0](https://openweathermap.org/api/one-call-3), which OpenWeatherMap offers only as this separate subscription, even with a free account. Subscribe on [https://openweathermap.org/api/one-call-3](https://openweathermap.org/api/one-call-3).
+ * The subscription is free up to 1,000 API calls per day, but OpenWeatherMap requires a payment method to subscribe. Calls beyond 1,000 per day are charged; set a daily call limit in your OpenWeatherMap account to prevent that. With the default `updateInterval` of 10 minutes, WB-weather makes 144 calls per day.
+ * Without the subscription, WB-weather shows OpenWeatherMap's error message instead of the weather and does not try again.
  * **Minimum limit for updateInterval:** 10 minutes ([OpenWeatherMap suggests a limit](https://openweathermap.org/appid) of 1 API call every 10 minutes because their weather servers do not update weather any faster than that.)
  * **Maximum number of forecast days:** 8 days.
 
@@ -76,45 +78,6 @@ modules: [
 ````
 -------------------------------
 
-### DarkSky
-
-The original weather provider for the WallberryTheme.
-
- * [DarkSky was acquired by Apple](https://blog.darksky.net/) and **no longer allows sign ups for new API keys** :(
- * Support for users who already have API keys will continue through the **end of 2021**
- * Free accounts are limited to 1,000 API calls each day
- * **Minimum limit for updateInterval:** 10 minutes.
- * **Maximum number of forecast days:** 8 days.
-
-#### DarkSky Configuration Options
-
-| Option                      | Default            | Type       | Description
-| ----------------------------|--------------------| -----------|------------
-| `apiKey` <br>**REQUIRED**   | None               |String      | Your DarkSky API Key.
-| `latitude` <br>**REQUIRED** | None               |Number      | Your current latitude.
-| `longitude` <br>**REQUIRED**| None               |Number      | Your current longitude.
-| providerName<br>**REQUIRED**| "darksky"          |String      | The providerName for DarkSky.
-
-#### Sample WB-weather config Using DarkSky
-
-````javascript
-modules: [
-	{
-		module: "WallberryTheme/WB-weather",
-		position: "bottom_bar",  // Highly suggested location
-		config: {
-			// See "Configuration options" for more information.
-			apiKey: "add your darkSky API KEY here",
-			providerName: "darksky",
-			latitude:   47.603230,
-			longitude: -122.330276
-		}
-	}
-]
-````
-
--------------------------------
-
 ## Available Display Templates
 
 ### Classic Wallberry
@@ -122,7 +85,7 @@ modules: [
 The current default template for WB-weather. Displays the current weather and upcoming forecast.
 
 * **Template Name:** `"classic-wallberry"`
-* **Providers Supported:** OpenWeatherMap, DarkSky
+* **Providers Supported:** OpenWeatherMap
 
 Sample Screenshot:
 
@@ -144,19 +107,17 @@ Sample Screenshot:
 
 ## Writing A New Weather Provider
 
-All weather providers are located in the `WB-weather/providers/` directory and should subclass either the [`WBProvider` or the `WBProviderWithHelper` class](WB-provider.js).
+All weather providers are located in the `WB-weather/providers/` directory and should subclass the [`WBProvider` class](WB-provider.js).
 
 ### Examples
 
 * [WB-openweathermap.js](providers/WB-openweathermap.js) subclasses `WBProvider` and implements the OpenWeatherMap API.
-* [WB-darksky.js](providers/WB-darksky.js)/[WB-darksky-helper.js](providers/WB-darksky-helper.js) subclasses `WBProviderWithHelper` and implements the DarkSky API.
 
 ### Provider Naming Conventions
 
 - Choose a short name for your provider, such as `myprovider`, that users will use in the `providerName` option in their module config file.
 - **Make sure your providerName is LOWER CASE.**
 - Name your provider's javascript file `WB-{myprovider}.js`, with `{myprovider}` being your `providerName`.
-- If you're implementing `WBProviderWithHelper`, the .js file for your helper function should be named `WB-{myprovider}-helper.js`.
 
 ### Implementing WBProvider
 
@@ -270,72 +231,6 @@ The data classes in `Wb-DataObjects.js`, specifically `WBWeather` and `WBForecas
 
 * Your provider should attempt to fill in as much data as it can for the documented properties of these objects. **The more data you fill in, the more likely it is for your provider to work with multiple display templates.**
 * Your provider can add custom properties to these objects, but remember that it's up to the templates to support them.
-
-
-### Implementing WBProviderWithHelper
-
-`WBProviderWithHelper` is a subclass of `WBProvider`, but it allows you to perform your API call from MagicMirror's node.js server using its node_helper function. This is helpful if your weather service has CORS configured to require requests to come from a server instead of a browser (like DarkSky does), or you just want to use the features of node.js.
-
-You'll implement `WBProviderWithHelper` almost exactly as you would `WBProvider`, but in place of `fetchWeather()` you'll need to implement `dataForHelper()` and `helperResponse()` instead:
-
-````javascript
-class WBMyProvider extends WBProviderWithHelper {
-	constructor(config, delegate) {
-		super(config, delegate);
-		// your init here
-	}
-
-	get updateIntervalLimit() {
-		// implement
-	}
-
-	get daysToForecastLimit() {
-		// implement
-	}
-
-	dataForHelper() {
-		// prepare whatever data your helper will need
-		return {};
-	}
-
-	helperResponse(data) {
-		// data contains the results of your fetch function
-		// process this data as you would in WBProvider's fetchWeather()
-		var weather = new WBWeather();
-		weather.temp = data.currentTemperature;
-		//etc etc...
-
-		// Hand off your weather object when you're done
-		this.resolveWithSuccess(weather);
-	}
-
-// VERY IMPORTANT, WB-weather won't find you otherwise!
-WBProviderManager.register("myprovider", WBMyProvider);
-
-````
-
-#### The Helper file
-
-You'll also need to write a helper file for the node_helper.js to call. This file should export a function that returns a promise, the results of which will be handed back to your provider in your `helperResponse()` function.
-
-For example:
-
-
-````javascript
-//helper code should be in your WB-myProvider-helper.js file
-
-const fetch = require("node-fetch");
-// the data argument passed here will be from your dataForHelper() function
-module.exports = function(data) {
-	// the results of this promise will be passed
-	// to your helperResponse() function
-	return fetch(config.url)
-		.then(res => res.json())
-		.catch(error => {
-			return {network_error: error};
-		});
-};
-````
 
 -------------------------------
 

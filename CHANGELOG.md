@@ -5,10 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Added a German translation of WallberryTheme's texts (the photo attribution, the loading message and the error messages), shown with `language: "de"` ([#4](https://github.com/raywo/WallberryTheme/issues/4)).
+- Added a README section on removing the theme's text shadow from text on coloured backgrounds in other modules, such as the line numbers of MMM-PublicTransportHub ([#5](https://github.com/raywo/WallberryTheme/issues/5)).
+
 ### Changed
 - Development continues in the fork [raywo/WallberryTheme](https://github.com/raywo/WallberryTheme), since [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme) is no longer updated. Install from there, and submit pull requests to `main`.
+- The tints of the background and of the top and bottom fades now look equally dark whatever the photo's colour; they are derived in CSS with OKLCH, and browsers without relative colour syntax show neutral dark fades ([#19](https://github.com/raywo/WallberryTheme/issues/19)).
+- WB-clock now shows the date in the word order of your `language` unless you set `dateTimeFormat`, e.g. “Montag, 26. Oktober” instead of “Montag, Oktober 26.” for `"de"`; English shows “Monday, October 26” instead of “Monday, October 26th” ([#22](https://github.com/raywo/WallberryTheme/issues/22)).
+- `autoDimOn` now dims a photo when white text would be hard to read behind the top or bottom bar, by the APCA contrast of the photo under the fades in those areas, instead of counting light pixels over the whole photo; it reads a downscaled copy, which is quicker on a Raspberry Pi ([#20](https://github.com/raywo/WallberryTheme/issues/20)).
+
+### Removed
+- **Breaking:** Removed WB-weather's Dark Sky provider, whose API Apple shut down in 2023, and the fallback that switched configs without `apiKey` to Dark Sky; a config with `providerName: "darksky"` or `darkSkyApiKey` now shows an error instead of the weather, so switch it to `providerName: "openweathermap"` with an OpenWeatherMap `apiKey`. WB-weather no longer has a `node_helper.js`, and the provider base class `WBProviderWithHelper` is gone ([#11](https://github.com/raywo/WallberryTheme/issues/11)).
 
 ### Fixed
+- Fixed WB-weather's OpenWeatherMap provider failing with “Invalid API key” for every request: it now uses One Call 3.0 instead of the shut-down One Call 2.5, which needs the separate “One Call by Call” subscription on your key, free up to 1,000 calls per day but requiring a payment method; without it, WB-weather shows OpenWeatherMap's error message ([#10](https://github.com/raywo/WallberryTheme/issues/10)).
+- Fixed text with characters beyond basic Latin, such as “Łódź”, “Plzeň” or “Győr”, mixing Rubik with the fallback font; the bundled Rubik now covers Latin Extended-A, except Ţ and ţ, which Rubik lacks ([#23](https://github.com/raywo/WallberryTheme/issues/23)).
+- Fixed WallberryTheme no longer changing the photo after Unsplash answers with a response that is not JSON, such as an exceeded rate limit, or does not answer at all; it now shows the error and tries again ([#21](https://github.com/raywo/WallberryTheme/issues/21)).
+- Fixed WallberryTheme never loading a background photo when Electron is not installed ([#3](https://github.com/raywo/WallberryTheme/issues/3)).
 - Fixed [issue 36](https://github.com/delightedCrow/WallberryTheme/issues/36) where the openweathermap provider for WB-weather wasn't properly using the language setting.
 
 ## 3.1.0 - 2021-3-4
