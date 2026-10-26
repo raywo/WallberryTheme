@@ -1,6 +1,46 @@
 const {describe, it} = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const {loadScripts} = require("./helpers/load-scripts");
+
+const REPO_ROOT = path.join(__dirname, "..");
+
+function readTranslation(file) {
+	return JSON.parse(fs.readFileSync(path.join(REPO_ROOT, file), "utf8"));
+}
+
+/**
+ * Translates an error of the module the way MagicMirror²'s Translator
+ * fills a translation's placeholders.
+ */
+function translateError(translation, error) {
+	const variables = error.variables ?? {};
+	return translation[error.key].replace(/{([^}]+)}/g, (placeholder, name) => {
+		return name in variables ? variables[name] : placeholder;
+	});
+}
+
+const EN = readTranslation("translations/en.json");
+
+// Keys of MagicMirror²'s core translations (translations/en.json, v2.38.0).
+// MagicMirror²'s Translator looks a key up in the core translations before
+// the module's fallback file, so a module key from this list shows the
+// core text in every language without a module translation.
+const CORE_KEYS = [
+	"LOADING", "YESTERDAY", "TODAY", "TOMORROW", "RUNNING", "EMPTY", "WEEK",
+	"WEEK_SHORT", "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW",
+	"SW", "WSW", "W", "WNW", "NW", "NNW", "FEELS", "PRECIP_POP",
+	"PRECIP_AMOUNT", "MODULE_CONFIG_CHANGED", "MODULE_CONFIG_ERROR",
+	"MODULE_ERROR_MALFORMED_URL", "MODULE_ERROR_NO_CONNECTION",
+	"MODULE_ERROR_UNAUTHORIZED", "MODULE_ERROR_RATE_LIMITED",
+	"MODULE_ERROR_SERVER_ERROR", "MODULE_ERROR_CLIENT_ERROR",
+	"MODULE_ERROR_UNSPECIFIED", "NEWSFEED_NO_ITEMS",
+	"NEWSFEED_ARTICLE_UNAVAILABLE", "UPDATE_NOTIFICATION",
+	"UPDATE_NOTIFICATION_MODULE", "UPDATE_INFO_SINGLE", "UPDATE_INFO_MULTIPLE",
+	"UPDATE_NOTIFICATION_DONE", "UPDATE_NOTIFICATION_ERROR",
+	"UPDATE_NOTIFICATION_NEED-RESTART", "ALERT_TITLE", "ALERT_WELCOME"
+];
 
 /**
  * Stands in for the browser's XMLHttpRequest: records the listeners and
@@ -67,22 +107,22 @@ describe("WallberryTheme parseUnsplashResponse", () => {
 
 	it("returns Unsplash's error text of a JSON error response", () => {
 		const result = mod.parseUnsplashResponse(401, "Unauthorized", JSON.stringify({errors: ["OAuth error: The access token is invalid"]}), null);
-		assert.equal(result.error, "The Unsplash API returned the error \"OAuth error: The access token is invalid\"");
+		assert.equal(translateError(EN, result.error), "The Unsplash API returned the error \"OAuth error: The access token is invalid\"");
 	});
 
 	it("names the rate limit for a plain-text 403 response", () => {
 		const result = mod.parseUnsplashResponse(403, "Forbidden", "Rate Limit Exceeded", null);
-		assert.match(result.error, /rate limit/i);
+		assert.equal(result.error.key, "ERROR_RATE_LIMIT");
 	});
 
 	it("names the rate limit when no requests remain", () => {
 		const result = mod.parseUnsplashResponse(403, "Forbidden", "", "0");
-		assert.match(result.error, /rate limit/i);
+		assert.equal(result.error.key, "ERROR_RATE_LIMIT");
 	});
 
 	it("returns a status error for a body that is not JSON", () => {
 		const result = mod.parseUnsplashResponse(502, "Bad Gateway", "<html>Bad Gateway</html>", null);
-		assert.equal(result.error, "Unsplash Error: 502, Bad Gateway");
+		assert.equal(translateError(EN, result.error), "Unsplash Error: 502, Bad Gateway");
 	});
 
 	it("returns an error for a successful status whose body is not a photo", () => {
@@ -118,7 +158,50 @@ describe("WallberryTheme fetchPhoto", () => {
 		const req = FakeXMLHttpRequest.last;
 		assert.equal(req.timeout, mod.requestTimeout);
 		req.fire("timeout");
-		assert.match(mod.photoError, /did not answer/);
+		assert.equal(translateError(EN, mod.photoError), "The Unsplash server did not answer within 30 seconds.");
 		assert.deepEqual(timers, [mod.config.updateInterval]);
+	});
+});
+
+describe("WallberryTheme translations", () => {
+	const {mod} = createModule();
+	const files = mod.getTranslations();
+
+	it("lists English first, so that MagicMirror² falls back to it", () => {
+		assert.equal(Object.keys(files)[0], "en");
+		assert.ok(files.de);
+	});
+
+	it("translates every key into every language", () => {
+		for (const file of Object.values(files)) {
+			assert.deepEqual(Object.keys(readTranslation(file)).sort(), Object.keys(EN).sort(), file);
+		}
+	});
+
+	it("uses no key of MagicMirror²'s core translations", () => {
+		for (const key of Object.keys(EN)) {
+			assert.ok(!CORE_KEYS.includes(key), key);
+		}
+	});
+
+	it("keeps the placeholders of each English text", () => {
+		const placeholders = (text) => (text.match(/{[^}]+}/g) ?? []).sort();
+		for (const file of Object.values(files)) {
+			const translation = readTranslation(file);
+			for (const key of Object.keys(EN)) {
+				assert.deepEqual(placeholders(translation[key]), placeholders(EN[key]), `${file} ${key}`);
+			}
+		}
+	});
+
+	it("has a text for every key the module and its template use", () => {
+		const sources = ["WallberryTheme.js", "WallberryTheme.njk"]
+			.map((file) => fs.readFileSync(path.join(REPO_ROOT, file), "utf8"))
+			.join("\n");
+		const used = [...sources.matchAll(/"((?:ERROR|PHOTO|LOADING)[A-Z_]*)"/g)].map((match) => match[1]);
+		assert.ok(used.length > 0);
+		for (const key of used) {
+			assert.ok(key in EN, key);
+		}
 	});
 });

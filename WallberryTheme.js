@@ -43,6 +43,15 @@ Module.register("WallberryTheme", {
 		return ["colorHelpers.js"];
 	},
 
+	// English comes first: MagicMirror falls back to the first file for a
+	// language without a translation.
+	getTranslations: function() {
+		return {
+			en: "translations/en.json",
+			de: "translations/de.json"
+		};
+	},
+
 	start: function() {
 		Log.info("Starting module: " + this.name);
 		if (this.config.clearCacheOnStart) {
@@ -110,11 +119,11 @@ Module.register("WallberryTheme", {
 
 		req.addEventListener("error", function() {
 			// most likely an internet connection issue
-			mod.processError("Could not connect to the Unsplash server.");
+			mod.processError({key: "ERROR_CONNECTION"});
 		});
 
 		req.addEventListener("timeout", function() {
-			mod.processError(`The Unsplash server did not answer within ${mod.requestTimeout / 1000} seconds.`);
+			mod.processError({key: "ERROR_TIMEOUT", variables: {seconds: mod.requestTimeout / 1000}});
 		});
 
 		req.open("GET", url);
@@ -126,7 +135,8 @@ Module.register("WallberryTheme", {
 	// Turns an Unsplash response into either {photo} or {error}. Never
 	// throws: a response whose body is not JSON, e.g. a rate limit
 	// message or a proxy's error page, must still end in an error that
-	// schedules the next fetch.
+	// schedules the next fetch. An error is a translation key with its
+	// variables, translated when the template renders it.
 	parseUnsplashResponse: function(status, statusText, responseText, rateLimitRemaining) {
 		let data = null;
 		try {
@@ -142,17 +152,17 @@ Module.register("WallberryTheme", {
 		// The header is only readable if Unsplash exposes it to the
 		// browser, so the body text serves as a second hint.
 		if (rateLimitRemaining === "0" || (status === 403 && /rate limit/i.test(responseText))) {
-			return {error: "The Unsplash rate limit is exceeded; demo access keys allow 50 requests per hour. The module tries again later."};
+			return {error: {key: "ERROR_RATE_LIMIT"}};
 		}
 		if (isObject && Array.isArray(data.errors)) {
-			return {error: `The Unsplash API returned the error "${data.errors.join(", ")}"`};
+			return {error: {key: "ERROR_API", variables: {errors: data.errors.join(", ")}}};
 		}
-		return {error: `Unsplash Error: ${status}, ${statusText}`};
+		return {error: {key: "ERROR_STATUS", variables: {status: status, statusText: statusText}}};
 	},
 
-	processError: function(errorText) {
-		// TODO: might want to add support for translating error messages
-		this.photoError = errorText;
+	// error: {key, variables} of a message in translations/
+	processError: function(error) {
+		this.photoError = error;
 		this.updateDom();
 		this.fetchTimer = setTimeout(() => {
 			this.fetchPhoto();
@@ -220,8 +230,8 @@ Module.register("WallberryTheme", {
 			trimBlocks: true,
 			lstripBlocks: true
 		});
-		this._nunjucksEnvironment.addFilter("translate", function(str) {
-			return self.translate(str);
+		this._nunjucksEnvironment.addFilter("translate", function(str, variables) {
+			return self.translate(str, variables);
 		});
 
 		return this._nunjucksEnvironment;
