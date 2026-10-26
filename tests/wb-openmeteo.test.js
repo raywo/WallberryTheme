@@ -94,9 +94,18 @@ describe("WBOpenMeteo", () => {
 		assert.deepEqual(
 			provider.weather.forecast.map((f) => [f.date, f.precipChance, f.precipType, f.minTemp, f.maxTemp]),
 			[
-				[1792969200, 10, "rain", 7.6, 12.9],
-				[1793055600, 70, "snow", -2.3, 1.5]
+				[1793012400, 10, "rain", 7.6, 12.9],
+				[1793098800, 70, "snow", -2.3, 1.5]
 			]
+		);
+	});
+
+	it("dates each forecast so a clock in UTC reads the location's weekday", async () => {
+		// Leipzig's Monday and Tuesday start at 23:00 UTC of the day before
+		const {provider} = await fetchWith(answer(200, FORECAST));
+		assert.deepEqual(
+			provider.weather.forecast.map((f) => new Date(f.date * 1000).getUTCDay()),
+			[1, 2]
 		);
 	});
 

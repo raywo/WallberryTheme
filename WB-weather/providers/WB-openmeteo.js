@@ -60,7 +60,9 @@ class WBOpenMeteo extends WBProvider {
 		var daily = data.daily;
 		w.forecast = daily.time.slice(0, this.daysToForecast).map((time, i) => {
 			var f = new WBForecast();
-			f.date = time;
+			// time is the location's midnight; noon keeps the weekday for
+			// mirror clocks up to 12 hours off the location's time zone
+			f.date = time + 12 * 60 * 60;
 			f.precipChance = daily.precipitation_probability_max[i];
 			f.precipType = (daily.snowfall_sum[i] > 0) ? "snow" : "rain";
 			f.minTemp = daily.temperature_2m_min[i];
