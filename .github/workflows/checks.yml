@@ -1,4 +1,4 @@
-name: Syntax check
+name: Checks
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ on:
       - main
 
 jobs:
-  syntax-check:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,3 +20,5 @@ jobs:
           node-version: 22
       - name: Check the syntax of every JavaScript file
         run: git ls-files '*.js' | xargs -n1 node --check
+      - name: Run the tests
+        run: node --test "tests/**/*.test.js"
