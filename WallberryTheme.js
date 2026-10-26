@@ -30,6 +30,7 @@ Module.register("WallberryTheme", {
 	photoError: null,
 	fetchTimer: null,
 	img: null,
+	requestTimeout: 30 * 1000, // abort an Unsplash request that has not answered after 30 s
 
 	getStyles: function() {
 		return [
@@ -93,14 +94,17 @@ Module.register("WallberryTheme", {
 		var mod = this;
 
 		req.addEventListener("load", function() {
-			const unsplashData = JSON.parse(this.responseText);
-			if (this.status === 200) {
-				mod.processPhoto(unsplashData);
-			} else if ("errors" in unsplashData) {
-				mod.processError(`The Unsplash API returned the error "${unsplashData["errors"].join(", ")}"`);
+			const result = mod.parseUnsplashResponse(
+				this.status,
+				this.statusText,
+				this.responseText,
+				this.getResponseHeader("X-Ratelimit-Remaining")
+			);
+			if (result.photo) {
+				mod.processPhoto(result.photo);
 			} else {
-				mod.processError(`Unsplash Error: ${this.status}, ${this.statusText}`);
-				Log.error("Unsplash Error: ", this.responseText);
+				Log.error("Unsplash Error: ", this.status, this.responseText);
+				mod.processError(result.error);
 			}
 		});
 
@@ -109,9 +113,41 @@ Module.register("WallberryTheme", {
 			mod.processError("Could not connect to the Unsplash server.");
 		});
 
+		req.addEventListener("timeout", function() {
+			mod.processError(`The Unsplash server did not answer within ${mod.requestTimeout / 1000} seconds.`);
+		});
+
 		req.open("GET", url);
+		req.timeout = this.requestTimeout;
 		req.setRequestHeader("Accept-Version", "v1");
 		req.send();
+	},
+
+	// Turns an Unsplash response into either {photo} or {error}. Never
+	// throws: a response whose body is not JSON, e.g. a rate limit
+	// message or a proxy's error page, must still end in an error that
+	// schedules the next fetch.
+	parseUnsplashResponse: function(status, statusText, responseText, rateLimitRemaining) {
+		let data = null;
+		try {
+			data = JSON.parse(responseText);
+		} catch (e) {
+			data = null;
+		}
+		const isObject = data !== null && typeof data === "object";
+
+		if (status === 200 && isObject && data.urls) {
+			return {photo: data};
+		}
+		// The header is only readable if Unsplash exposes it to the
+		// browser, so the body text serves as a second hint.
+		if (rateLimitRemaining === "0" || (status === 403 && /rate limit/i.test(responseText))) {
+			return {error: "The Unsplash rate limit is exceeded; demo access keys allow 50 requests per hour. The module tries again later."};
+		}
+		if (isObject && Array.isArray(data.errors)) {
+			return {error: `The Unsplash API returned the error "${data.errors.join(", ")}"`};
+		}
+		return {error: `Unsplash Error: ${status}, ${statusText}`};
 	},
 
 	processError: function(errorText) {
