@@ -291,9 +291,19 @@ describe("WallberryTheme tint styles", () => {
 		assert.deepEqual(definedNames(fallback), definedNames(supported));
 	});
 
+	it("falls back to the neutral tints in the fades when there is no swatch", () => {
+		const neutral = Object.fromEntries([...css.slice(0, supportsStart).matchAll(/(--wb-tint-[a-z-]+): (.*);/g)].map((match) => [match[1], match[2]]));
+		const fades = css.slice(css.indexOf(".topfade"), css.indexOf(".light"));
+		const uses = [...fades.matchAll(/var\((--wb-tint-[a-z-]+)(?:, ([^()]*(?:\([^()]*\))?))?\)/g)];
+		assert.ok(uses.length > 0);
+		for (const [use, name, fallback] of uses) {
+			assert.equal(fallback, neutral[name], use);
+		}
+	});
+
 	it("defines every tint the styles and the module use", () => {
 		const module = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.js"), "utf8");
-		const used = [...(css + module).matchAll(/var\((--wb-tint-[a-z-]+)\)/g)].map((match) => match[1]);
+		const used = [...(css + module).matchAll(/var\((--wb-tint-[a-z-]+)[,)]/g)].map((match) => match[1]);
 		assert.ok(used.length > 0);
 		for (const name of used) {
 			assert.ok(definedNames(css.slice(0, supportsStart)).includes(name), name);

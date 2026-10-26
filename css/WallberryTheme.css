@@ -13,7 +13,9 @@ body {
  * --wb-swatch: its hue at a fixed OKLCH lightness and chroma, so that the
  * background and the fades look equally dark whatever the hue. Browsers
  * without relative colour syntax get neutral greys of the same lightness;
- * keep both sets of values in step. */
+ * keep both sets of values in step. The fades repeat the greys as var()
+ * fallbacks: without a swatch, the derived tints are invalid and the
+ * gradients would otherwise vanish. */
 :root {
   --wb-tint-dark: rgb(15, 15, 15);
   --wb-tint-dark-fade: rgba(15, 15, 15, 0.7);
@@ -35,11 +37,11 @@ body {
 
 .topfade {
   top: 0px;
-  background-image: linear-gradient(var(--wb-tint-dark-fade), var(--wb-tint-light-fade));
+  background-image: linear-gradient(var(--wb-tint-dark-fade, rgba(15, 15, 15, 0.7)), var(--wb-tint-light-fade, rgba(72, 72, 72, 0)));
 }
 .bottomfade {
   bottom: 0px;
-  background-image: linear-gradient(var(--wb-tint-light-fade), black);
+  background-image: linear-gradient(var(--wb-tint-light-fade, rgba(72, 72, 72, 0)), black);
 }
 
 .light {
