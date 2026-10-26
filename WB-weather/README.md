@@ -43,8 +43,10 @@ These general options should honored the same across all weather providers. Spec
 
 OpenWeatherMap is currently the default weather provider for WB-weather.
 
- * **Sign up for a free API key at [https://openweathermap.org/api](https://openweathermap.org/api)**.
- * Free accounts are limited to 60 API calls/minute.
+ * **Sign up for an API key at [https://openweathermap.org/api](https://openweathermap.org/api)**.
+ * **Your key needs the "One Call by Call" subscription.** WB-weather uses the [One Call API 3.0](https://openweathermap.org/api/one-call-3), which OpenWeatherMap offers only as this separate subscription, even with a free account. Subscribe on [https://openweathermap.org/api/one-call-3](https://openweathermap.org/api/one-call-3).
+ * The subscription is free up to 1,000 API calls per day, but OpenWeatherMap requires a payment method to subscribe. Calls beyond 1,000 per day are charged; set a daily call limit in your OpenWeatherMap account to prevent that. With the default `updateInterval` of 10 minutes, WB-weather makes 144 calls per day.
+ * Without the subscription, WB-weather shows OpenWeatherMap's error message instead of the weather and does not try again.
  * **Minimum limit for updateInterval:** 10 minutes ([OpenWeatherMap suggests a limit](https://openweathermap.org/appid) of 1 API call every 10 minutes because their weather servers do not update weather any faster than that.)
  * **Maximum number of forecast days:** 8 days.
 
