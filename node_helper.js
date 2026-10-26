@@ -1,11 +1,26 @@
 const NodeHelper = require("node_helper");
-const {BrowserWindow} = require("electron");
+
+// MagicMirror² lists electron as an optional dependency, so it may be
+// missing (server-only and container installations). Do not require it
+// unguarded: a throwing require makes MagicMirror² skip this helper, and the
+// module then waits forever for ELECTRON_CACHE_CLEARED.
+let BrowserWindow = null;
+try {
+	({BrowserWindow} = require("electron"));
+} catch (e) {
+	console.log("WallberryTheme: Electron is not available, its cache will not be cleared.");
+}
 
 module.exports = NodeHelper.create({
 
 	socketNotificationReceived: function(notification, payload) {
 		switch(notification) {
 		case "CLEAR_CACHE":
+			if (!BrowserWindow) {
+				this.sendSocketNotification("ELECTRON_CACHE_CLEARED", {});
+				break;
+			}
+
 			try {
 				const win = BrowserWindow.getAllWindows()[0];
 				const ses = win.webContents.session;

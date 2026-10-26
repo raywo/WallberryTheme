@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Development continues in the fork [raywo/WallberryTheme](https://github.com/raywo/WallberryTheme), since [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme) is no longer updated. Install from there, and submit pull requests to `main`.
 
 ### Fixed
+- Fixed WallberryTheme never loading a background photo when Electron is not installed ([#3](https://github.com/raywo/WallberryTheme/issues/3)).
 - Fixed [issue 36](https://github.com/delightedCrow/WallberryTheme/issues/36) where the openweathermap provider for WB-weather wasn't properly using the language setting.
 
 ## 3.1.0 - 2021-3-4
