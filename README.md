@@ -1,8 +1,10 @@
 
 # WallberryTheme: A MagicMirror² Module
-The `WallberryTheme` module re-themes [MagicMirror²](https://github.com/MichMich/MagicMirror) to look like a beautiful photo-box wall display. It adds a new font, styles, and periodically changing background image pulled from Unsplash.com.
+The `WallberryTheme` module re-themes [MagicMirror²](https://github.com/MagicMirrorOrg/MagicMirror) to look like a beautiful photo-box wall display. It adds a new font, styles, and periodically changing background image pulled from Unsplash.com.
 
 The WallberryTheme also comes packaged with two companion modules for displaying the time (`WB-clock`) and weather (`WB-weather`).
+
+This is a fork of [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme), created by Jess Coulter. The original repository is no longer updated; this fork picks up fixes and updates on a best-effort basis.
 
  **REQUIRED API KEYS:**
 
@@ -44,7 +46,11 @@ WallberryTheme has new options for dealing with light text on bright background 
 ## Using the module
 
 To use this module and its companion modules:
-1.  Copy the `WallberryTheme` folder to your `MagicMirror/modules` directory
+1.  Clone this repository into your `MagicMirror/modules` directory:
+    ```bash
+    cd ~/MagicMirror/modules
+    git clone https://github.com/raywo/WallberryTheme.git
+    ```
 2.  Add the modules to the modules array in the `config/config.js` file like in the following example:
 
 ````javascript
@@ -107,25 +113,26 @@ The following properties of `WallberryTheme` can be configured. For more informa
 
 ## Contributing
 
-Contributions of all kinds (pull requests, bug reports, feature suggestions, documentation, etc) are all welcome and encouraged.
+Contributions of all kinds (pull requests, bug reports, feature suggestions, documentation, etc.) are welcome and encouraged. Please report bugs and suggest features in this repository's [issues](https://github.com/raywo/WallberryTheme/issues).
 
-If you're enjoying the WallberryTheme and wanna make my day:
+If you're enjoying the WallberryTheme:
 
-* **:coffee: [Buy me a coffee](https://ko-fi.com/delightedcrow) :coffee:** and fuel my motivation for open source development ;)
-* Post a screenshot of your MagicMirror running WallberryTheme in the [GitHub discussion](https://github.com/delightedCrow/WallberryTheme/discussions/categories/show-and-tell).
+* **:coffee: [Buy me a coffee](https://buymeacoffee.com/raywo) :coffee:** if the fixes in this fork are useful to you.
+* Thank Jess Coulter, who created the WallberryTheme, with a [coffee on Ko-fi](https://ko-fi.com/delightedcrow).
 
 Huge thanks to everyone who has contributed and made the WallberryTheme better!
 
 ### Guidelines for Pull Requests
-- **Pull Requests should be submitted to the `dev` branch**
+- **Pull Requests should be submitted to the `main` branch**
 - If there isn't one already, it's helpful to open an issue detailing the feature/bug your PR will address before you submit it.
 - Add a short description of your change to the [Changelog file](CHANGELOG.md) file under the `[Unreleased]` section.
 
 ## Attributions & Special Thanks
 
+- [Jess Coulter (delightedCrow)](https://github.com/delightedCrow) created the WallberryTheme and its companion modules and maintained them up to version 3.1.0. Thank you for this beautiful theme <3
 - Thanks to the magnificent MagicMirror² community, y'all are creative and awesome <3
 - The light/dark detection functionality in [colorHelpers.js](colorHelpers.js) was taken from this wonderful [StackOverflow answer by ToniTornado](https://stackoverflow.com/questions/13762864/image-dark-light-detection-client-sided-script), and you can check out the [jsFiddle for it here](http://jsfiddle.net/s7Wx2/).
-- The color conversion functions in [colorHelpers.js](colorHelpers.js) were taken from the [colorsys](https://github.com/netbeast/colorsys) library by netbeast, and they saved me a great deal of time <3.
+- The color conversion functions in [colorHelpers.js](colorHelpers.js) were taken from the [colorsys](https://github.com/netbeast/colorsys) library by netbeast.
 
 ## Changelog
 
