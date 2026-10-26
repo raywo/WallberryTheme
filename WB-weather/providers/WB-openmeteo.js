@@ -41,6 +41,39 @@ class WBOpenMeteo extends WBProvider {
 	// "not available", for a code Open-Meteo may add later
 	static unknownIcon = "wi-na";
 
+	// Translation keys of the WMO code groups, for the description of the
+	// current weather
+	static descriptionKeys = {
+		0: "WMO_CLEAR",
+		1: "WMO_MAINLY_CLEAR",
+		2: "WMO_PARTLY_CLOUDY",
+		3: "WMO_OVERCAST",
+		45: "WMO_FOG",
+		48: "WMO_FOG",
+		51: "WMO_DRIZZLE",
+		53: "WMO_DRIZZLE",
+		55: "WMO_DRIZZLE",
+		56: "WMO_FREEZING_DRIZZLE",
+		57: "WMO_FREEZING_DRIZZLE",
+		61: "WMO_RAIN",
+		63: "WMO_RAIN",
+		65: "WMO_RAIN",
+		66: "WMO_FREEZING_RAIN",
+		67: "WMO_FREEZING_RAIN",
+		71: "WMO_SNOW",
+		73: "WMO_SNOW",
+		75: "WMO_SNOW",
+		77: "WMO_SNOW_GRAINS",
+		80: "WMO_RAIN_SHOWERS",
+		81: "WMO_RAIN_SHOWERS",
+		82: "WMO_RAIN_SHOWERS",
+		85: "WMO_SNOW_SHOWERS",
+		86: "WMO_SNOW_SHOWERS",
+		95: "WMO_THUNDERSTORM",
+		96: "WMO_THUNDERSTORM_HAIL",
+		99: "WMO_THUNDERSTORM_HAIL"
+	};
+
 	static snowCodes = [71, 73, 75, 77, 85, 86];
 
 	/**
@@ -53,6 +86,23 @@ class WBOpenMeteo extends WBProvider {
 			return WBOpenMeteo.unknownIcon;
 		}
 		return isDay ? variants[0] : variants[1];
+	}
+
+	/**
+	 * Returns the translation key describing a WMO weather code, or null
+	 * for a code without one.
+	 */
+	static descriptionKey(code) {
+		return WBOpenMeteo.descriptionKeys[code] ?? null;
+	}
+
+	/**
+	 * Describes a WMO weather code in the language of the mirror, or
+	 * returns null for a code without a description.
+	 */
+	description(code) {
+		var key = WBOpenMeteo.descriptionKey(code);
+		return key === null ? null : this.delegate.translate(key);
 	}
 
 	constructor(config, delegate) {
@@ -108,6 +158,7 @@ class WBOpenMeteo extends WBProvider {
 		var w = new WBWeather();
 		w.temp = data.current.temperature_2m;
 		w.wicon = WBOpenMeteo.icon(data.current.weather_code, data.current.is_day === 1);
+		w.longDescription = this.description(data.current.weather_code);
 
 		var daily = data.daily;
 		w.forecast = daily.time.slice(0, this.daysToForecast).map((time, i) => {

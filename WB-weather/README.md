@@ -33,7 +33,7 @@ These general options should honored the same across all weather providers. Spec
 | `apiKey`                    | None               |String      | The API key for your weather provider, if it needs one. Open-Meteo needs none; OpenWeatherMap requires one.
 | template                    | "classic-wallberry"|String      | The name of your weather template. (See available templates below).
 | `units`                     | config.units       |String      | What temperature units to use. **Possible values:** `"imperial"`, `"metric"`, `"standard"`<br>
-| `language`                  | config.language    |String      | What language to use. <br><br> **Possible values:** `en`, `nl`, `ru`, etc...<br>
+| `language`                  | config.language    |String      | The language OpenWeatherMap describes the weather in. <br><br> **Possible values:** `en`, `nl`, `ru`, etc...<br><br> WB-weather's own texts, the weekdays of the forecast and Open-Meteo's description follow the `language` of your MagicMirror config instead; WB-weather's own texts are in English and German.<br>
 | `daysToForecast`            | 4                  |Number      | How many days to forecast in weekly forecast. <br><br> **Possible values:** Varies by provider. With the `classic-wallberry` template on a 1080 px wide portrait screen, up to 5 days fit in one row next to the current weather. <br>
 | `updateInterval`            | The provider's minimum|Number   | How often to fetch new weather data (Milliseconds). Limits vary by provider: 15 minutes for Open-Meteo, 10 minutes for OpenWeatherMap.
 
@@ -48,7 +48,7 @@ These general options should honored the same across all weather providers. Spec
  * **No API key and no sign-up.** Set `providerName: "openmeteo"` with your `latitude` and `longitude`.
  * **Units:** `units: "imperial"` shows Fahrenheit; any other value, including `"metric"`, `"standard"` and none, shows Celsius. Open-Meteo offers no Kelvin.
  * **Icons:** the current weather shows a day or night icon, depending on whether the sun is up at your location; forecast days show the day icon. A forecast day with snowfall or snow in its weather shows the snowflake next to its chance of precipitation, any other day the raindrop.
- * WB-weather shows no weather description with Open-Meteo yet.
+ * **Description:** Open-Meteo sends no text, so WB-weather describes the current weather itself, e.g. “Partly cloudy”, in the `language` of your MagicMirror config: English or German, any other language shows English.
  * If Open-Meteo rejects the request, e.g. for a latitude out of range, WB-weather shows Open-Meteo's reason instead of the weather and does not try again. After a network error, or once Open-Meteo's request limit is reached, it tries again after 15 minutes.
  * **Minimum limit for updateInterval:** 15 minutes, as Open-Meteo does not update its weather data faster than that.
  * **Maximum number of forecast days:** 16 days.
@@ -269,6 +269,7 @@ The data classes in `Wb-DataObjects.js`, specifically `WBWeather` and `WBForecas
 
 * Your provider should attempt to fill in as much data as it can for the documented properties of these objects. **The more data you fill in, the more likely it is for your provider to work with multiple display templates.**
 * Your provider can add custom properties to these objects, but remember that it's up to the templates to support them.
+* If your weather API returns no text, such as a description of the weather, call `this.delegate.translate(key)` for a key in the files in `WB-weather/translations/`. Add a new key to every file there; MagicMirror shows the English text for a language without a file.
 
 -------------------------------
 

@@ -62,7 +62,11 @@ function load(fetchStub) {
 function fetchWith(fetchStub, config = CONFIG) {
 	const {Provider, requests} = load(fetchStub);
 	return new Promise((resolve) => {
-		const provider = new Provider(config, {updateAvailable: () => resolve({provider, requests})});
+		const delegate = {
+			updateAvailable: () => resolve({provider, requests}),
+			translate: (key) => `text of ${key}`
+		};
+		const provider = new Provider(config, delegate);
 		provider.fetchWeather();
 	});
 }
@@ -146,6 +150,50 @@ describe("WBOpenMeteo", () => {
 				const icon = Provider.icon(code, isDay);
 				assert.match(icon, /^wi-[a-z-]+$/, `code ${code}`);
 				assert.notEqual(icon, "wi-na", `code ${code}`);
+			}
+		}
+	});
+
+	it("describes the current weather with the text of its code's key", async () => {
+		const {provider} = await fetchWith(answer(200, FORECAST));
+		assert.equal(provider.weather.longDescription, "text of WMO_PARTLY_CLOUDY");
+	});
+
+	it("gives no description for an unknown weather code", async () => {
+		const {provider} = await fetchWith(answer(200, withCurrent({weather_code: 4})));
+		assert.equal(provider.error, null);
+		assert.equal(provider.weather.longDescription, null);
+	});
+
+	it("gives every weather code Open-Meteo returns a description key", () => {
+		const {Provider} = load(answer(200, FORECAST));
+		for (const code of WMO_CODES) {
+			assert.match(Provider.descriptionKey(code) ?? "", /^WMO_[A-Z_]+$/, `code ${code}`);
+		}
+	});
+
+	it("describes each code group with its own key", () => {
+		const {Provider} = load(answer(200, FORECAST));
+		const groups = [
+			[[0], "WMO_CLEAR"],
+			[[1], "WMO_MAINLY_CLEAR"],
+			[[2], "WMO_PARTLY_CLOUDY"],
+			[[3], "WMO_OVERCAST"],
+			[[45, 48], "WMO_FOG"],
+			[[51, 53, 55], "WMO_DRIZZLE"],
+			[[56, 57], "WMO_FREEZING_DRIZZLE"],
+			[[61, 63, 65], "WMO_RAIN"],
+			[[66, 67], "WMO_FREEZING_RAIN"],
+			[[71, 73, 75], "WMO_SNOW"],
+			[[77], "WMO_SNOW_GRAINS"],
+			[[80, 81, 82], "WMO_RAIN_SHOWERS"],
+			[[85, 86], "WMO_SNOW_SHOWERS"],
+			[[95], "WMO_THUNDERSTORM"],
+			[[96, 99], "WMO_THUNDERSTORM_HAIL"]
+		];
+		for (const [codes, key] of groups) {
+			for (const code of codes) {
+				assert.equal(Provider.descriptionKey(code), key, `code ${code}`);
 			}
 		}
 	});

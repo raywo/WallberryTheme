@@ -30,9 +30,12 @@ Module.register("WB-weather", {
 	weather: null,
 	error: null,
 
+	// English comes first: MagicMirror falls back to the first file for a
+	// language without a translation.
 	getTranslations: function() {
 		return {
-			en: "translations/en.json"
+			en: "translations/en.json",
+			de: "translations/de.json"
 		};
 	},
 
@@ -150,9 +153,8 @@ Module.register("WB-weather", {
 
 	addNunjuckFilters: function() {
 		this.nunjucksEnvironment().addFilter("dayLabel", function(timestamp) {
-			var date = new Date(timestamp * 1000);
-			return moment.weekdaysShort(date.getDay());
-		});
+			return this.dayLabel(timestamp);
+		}.bind(this));
 
 		this.nunjucksEnvironment().addFilter("precipIcons", function(precipType) {
 			return this.precipitationTypes[precipType];
@@ -161,6 +163,14 @@ Module.register("WB-weather", {
 		this.nunjucksEnvironment().addFilter("translate", function(str, variables) {
 			return this.translate(str, variables);
 		}.bind(this));
+	},
+
+	// The short weekday of a Unix timestamp, in the language MagicMirror
+	// translates into. Sets the locale on the date only: MagicMirror does not
+	// set moment's global locale, and WB-weather must not rely on another
+	// module such as WB-clock doing it.
+	dayLabel: function(timestamp) {
+		return moment.unix(timestamp).locale(config.language).format("ddd");
 	},
 
 	// wi names for main precipitation types.
