@@ -1,4 +1,4 @@
-<div class="weather">
+<div class="weather{% if weather %} weather--loaded{% endif %}">
 	{% if weather %}
 	<div class="weather__current">
 		<div class="current__temperature light">{{ weather.temp | round }}<i class="wi wi-degrees"></i><i class="wi {{ weather.wicon }} wi-current"></i>

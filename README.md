@@ -9,7 +9,7 @@ This is a fork of [delightedCrow/WallberryTheme](https://github.com/delightedCro
  **REQUIRED API KEYS:**
 
 - A (free) Unsplash API key is required and can be obtained from [Unsplash.com](https://unsplash.com/developers).
-- For the weather module, an OpenWeatherMap API key with the "One Call by Call" subscription is required, which is free up to 1,000 calls per day but requires a payment method; see [WB-weather's OpenWeatherMap section](WB-weather/README.md#openweathermap).
+- The weather module needs no key with its Open-Meteo provider. Its OpenWeatherMap provider needs an OpenWeatherMap API key with the "One Call by Call" subscription, which is free up to 1,000 calls per day but requires a payment method; see [WB-weather's weather providers](WB-weather/README.md#available-weather-providers).
 
 ## New and Shiny in 3.0.0
 
@@ -81,7 +81,7 @@ modules: [
     position: "bottom_bar",  // Highly suggested location
     config: {
       // See "Configuration options" for more information.
-      apiKey: "Your openweathermap API key", // REQUIRED
+      providerName: "openmeteo", // REQUIRED
       latitude:   47.603230, // REQUIRED
       longitude: -122.330276 // REQUIRED
     }

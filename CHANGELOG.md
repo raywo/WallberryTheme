@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added a German translation of WallberryTheme's texts (the photo attribution, the loading message and the error messages), shown with `language: "de"` ([#4](https://github.com/raywo/WallberryTheme/issues/4)).
+- Added WB-weather's Open-Meteo provider, which needs no API key: set `providerName: "openmeteo"` with `latitude` and `longitude`; it shows no weather icons and no description yet. The `classic-wallberry` template now keeps the forecast in one row next to the current weather, which fits up to 5 days on a 1080 px wide portrait screen ([#7](https://github.com/raywo/WallberryTheme/issues/7)).
 - Added a README section on removing the theme's text shadow from text on coloured backgrounds in other modules, such as the line numbers of MMM-PublicTransportHub ([#5](https://github.com/raywo/WallberryTheme/issues/5)).
 
 ### Changed
+- **Breaking:** WB-weather's `providerName` no longer defaults to `"openweathermap"` and is required; a config without it shows an error instead of the weather. Add `providerName: "openweathermap",` to keep OpenWeatherMap, or `providerName: "openmeteo",` to use Open-Meteo without an `apiKey` ([#7](https://github.com/raywo/WallberryTheme/issues/7)).
 - Development continues in the fork [raywo/WallberryTheme](https://github.com/raywo/WallberryTheme), since [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme) is no longer updated. Install from there, and submit pull requests to `main`.
 - The tints of the background and of the top and bottom fades now look equally dark whatever the photo's colour; they are derived in CSS with OKLCH, and browsers without relative colour syntax show neutral dark fades ([#19](https://github.com/raywo/WallberryTheme/issues/19)).
 - WB-clock now shows the date in the word order of your `language` unless you set `dateTimeFormat`, e.g. “Montag, 26. Oktober” instead of “Montag, Oktober 26.” for `"de"`; English shows “Monday, October 26” instead of “Monday, October 26th” ([#22](https://github.com/raywo/WallberryTheme/issues/22)).

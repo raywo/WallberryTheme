@@ -7,10 +7,10 @@
 Module.register("WB-weather", {
 	// Module config defaults.
 	defaults: {
-		providerName: "openweathermap",
+		providerName: null, // REQUIRED, one of providerNames
 		template: "classic-wallberry",
 
-		apiKey: null, // REQUIRED
+		apiKey: null, // REQUIRED by openweathermap
 		latitude: null, // REQUIRED
 		longitude: null, // REQUIRED
 
@@ -21,6 +21,9 @@ Module.register("WB-weather", {
 		updateInterval: null,
 		initialLoadDelay: 1000
 	},
+
+	// the providers in providers/, for the error on a missing providerName
+	providerNames: ["openmeteo", "openweathermap"],
 
 	fetchTimer: null,
 	provider: null,
@@ -34,12 +37,15 @@ Module.register("WB-weather", {
 	},
 
 	getScripts: function() {
-		return [
+		let scripts = [
 			"moment.js",
 			"WB-dataObjects.js",
-			"WB-provider.js",
-			this.file("providers/WB-" + this.config.providerName + ".js")
+			"WB-provider.js"
 		];
+		if (this.config.providerName) {
+			scripts.push(this.file("providers/WB-" + this.config.providerName + ".js"));
+		}
+		return scripts;
 	},
 
 	getStyles: function() {
@@ -62,11 +68,20 @@ Module.register("WB-weather", {
 
 	start: function() {
 		Log.info(`Starting module: ${this.name}`);
-		// lower case helps eliminate user error in writing config options
-		this.config.providerName = this.config.providerName.toLowerCase();
 		this.config.template = this.config.template.toLowerCase();
 
 		this.addNunjuckFilters();
+
+		if (!this.config.providerName) {
+			let names = this.providerNames.map(name => `"${name}"`).join(" or ");
+			let message = `WB-weather needs the providerName option. Add providerName: ${names} to the module's config.`;
+			this.error = new WBError(false, message);
+			Log.error(message);
+			return;
+		}
+
+		// lower case helps eliminate user error in writing config options
+		this.config.providerName = this.config.providerName.toLowerCase();
 
 		this.provider = WBProviderManager.initialize(this.config, this);
 		if (this.provider == null) {
@@ -86,7 +101,10 @@ Module.register("WB-weather", {
 	resume: function() {
 		Log.info(`Resuming module: ${this.name}`);
 		clearTimeout(this.fetchTimer);
-		this.scheduleUpdate(this.config.initialLoadDelay);
+		// without a provider, start() has set the error and there is nothing to fetch
+		if (this.provider !== null) {
+			this.scheduleUpdate(this.config.initialLoadDelay);
+		}
 	},
 
 	// gets called by the weather provider when it has an update available
