@@ -206,18 +206,22 @@ Module.register("WallberryTheme", {
 	},
 
 	// The areas of the photo behind the top and bottom bar, as rows in
-	// fractions of imageHeight, with the fade over each: the same heights
-	// as the fades, which the photo shows at its natural size from the
-	// top of the screen.
+	// fractions of imageHeight: the rows of the bar region, where the text
+	// sits, and the rows of its fade, which is taller. The photo is shown
+	// at its natural size from the top of the screen.
 	getBarAreas: function(imageHeight) {
 		const screenHeight = window.innerHeight;
 		return ["top", "bottom"].map((position) => {
-			const height = Math.max(this.fadeMinHeight, this.getFadeHeight("region " + position + " bar"));
-			const start = position === "top" ? 0 : screenHeight - height;
+			const regionClassName = "region " + position + " bar";
+			const region = document.getElementsByClassName(regionClassName)[0].getBoundingClientRect();
+			const fadeHeight = Math.max(this.fadeMinHeight, this.getFadeHeight(regionClassName));
+			const fadeStart = position === "top" ? 0 : screenHeight - fadeHeight;
 			return {
-				start: start / imageHeight,
-				end: (start + height) / imageHeight,
-				fade: this.config.addBackgroundFade.includes(position) ? position : null
+				start: region.top / imageHeight,
+				end: region.bottom / imageHeight,
+				fade: this.config.addBackgroundFade.includes(position) ? position : null,
+				fadeStart: fadeStart / imageHeight,
+				fadeEnd: (fadeStart + fadeHeight) / imageHeight
 			};
 		});
 	},

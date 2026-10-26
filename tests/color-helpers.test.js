@@ -91,6 +91,29 @@ describe("WBColor barsNeedDimming", () => {
 		assert.equal(WBColor.barsNeedDimming(data, WIDTH, HEIGHT, [{start: 0.8, end: 1.2, fade: "bottom"}]), true);
 	});
 
+	it("measures only the rows behind a bar, under the part of the fade over them", () => {
+		// a 1920 px screen with a 100 px bar 60 px below the top and above
+		// the bottom, under fades 250 px high; white text there reads well
+		// on a mid grey, while the whole fade's area would be too bright
+		const data = pixels(() => [150, 150, 150]);
+		const screen = (px) => px / 1920;
+		const behindBars = [
+			{start: screen(60), end: screen(160), fade: "top", fadeStart: 0, fadeEnd: screen(250)},
+			{start: screen(1760), end: screen(1860), fade: "bottom", fadeStart: screen(1670), fadeEnd: 1}
+		];
+		const wholeFades = [
+			{start: 0, end: screen(250), fade: "top"},
+			{start: screen(1670), end: 1, fade: "bottom"}
+		];
+		assert.equal(WBColor.barsNeedDimming(data, WIDTH, HEIGHT, behindBars), false);
+		assert.equal(WBColor.barsNeedDimming(data, WIDTH, HEIGHT, wholeFades), true);
+	});
+
+	it("ignores a bar without rows", () => {
+		const data = pixels(() => BRIGHT);
+		assert.equal(WBColor.barsNeedDimming(data, WIDTH, HEIGHT, [{start: 0.1, end: 0.1, fade: null}]), false);
+	});
+
 	it("ignores an area outside the image", () => {
 		const data = pixels(() => BRIGHT);
 		assert.equal(WBColor.barsNeedDimming(data, WIDTH, HEIGHT, [{start: 1.1, end: 1.3, fade: null}]), false);

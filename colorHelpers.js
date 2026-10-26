@@ -38,9 +38,11 @@ var WBColor = {
 	},
 
 	// data: RGBA pixels of an image, row by row, as ImageData holds them
-	// bars: the areas behind the bars, each {start, end, fade}: start and
-	//   end are rows as fractions of the image height, fade is the key of
-	//   the fade over the area in FADES, or null without one
+	// bars: the areas behind the bars, each {start, end, fade, fadeStart,
+	//   fadeEnd}: start and end are the rows where the text sits, fade is
+	//   the key of the fade over them in FADES, or null without one, and
+	//   fadeStart and fadeEnd are the rows the whole fade spans, start and
+	//   end if left out; all rows as fractions of the image height
 	// The check measures the photo as it looks under the fade, because that
 	// is what the viewer sees behind the text.
 	barsNeedDimming: function(data, width, height, bars) {
@@ -52,19 +54,24 @@ var WBColor = {
 	},
 
 	// The colour at BRIGHT_PERCENTILE of an area's luminance, under its
-	// fade, or null for an area without rows. A percentile rather than the
-	// mean, so that a bright patch behind the text counts.
+	// fade, or null for an area without rows, such as an empty bar. A
+	// percentile rather than the mean, so that a bright patch behind the
+	// text counts.
 	brightColor: function(data, width, height, bar) {
-		// the fade spans the whole area, also where it reaches past the image
-		const areaTop = bar.start * height;
-		const areaBottom = bar.end * height;
-		const top = Math.max(0, areaTop);
-		const bottom = Math.min(height, areaBottom);
+		// the fade is positioned on its whole height, also where it reaches
+		// beyond the bar or past the image
+		const fadeTop = (bar.fadeStart ?? bar.start) * height;
+		const fadeBottom = (bar.fadeEnd ?? bar.end) * height;
+		const top = Math.max(0, bar.start * height);
+		const bottom = Math.min(height, bar.end * height);
+		if (bottom <= top) {
+			return null;
+		}
 		const fade = bar.fade ? this.FADES[bar.fade] : null;
 		const colors = [];
 
 		for (let y = Math.floor(top); y < Math.ceil(bottom); y++) {
-			const t = Math.min(1, Math.max(0, (y + 0.5 - areaTop) / (areaBottom - areaTop)));
+			const t = Math.min(1, Math.max(0, (y + 0.5 - fadeTop) / (fadeBottom - fadeTop)));
 			const alpha = fade ? fade.alpha(t) : 0;
 			for (let x = 0; x < width; x++) {
 				const i = (y * width + x) * 4;

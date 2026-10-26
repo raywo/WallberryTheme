@@ -273,15 +273,21 @@ describe("WallberryTheme background tint", () => {
 describe("WallberryTheme auto-dim", () => {
 	/**
 	 * Creates the WallberryTheme module on a 1080 × 1920 screen whose bar
-	 * regions are barHeight px high, with WBColor replaced by a recorder
-	 * that answers dim.
+	 * regions are barHeight px high and sit 60 px from the top and bottom
+	 * edge, with WBColor replaced by a recorder that answers dim.
 	 */
 	function createModuleWithBars(config, barHeight = 100, dim = true) {
 		const calls = [];
 		const scripts = loadScripts(["WallberryTheme.js"], {
 			document: {
 				createElement: () => ({style: {}}),
-				getElementsByClassName: () => [{clientHeight: barHeight}]
+				getElementsByClassName: (name) => {
+					const top = name === "region top bar" ? 60 : 1920 - 60 - barHeight;
+					return [{
+						clientHeight: barHeight,
+						getBoundingClientRect: () => ({top: top, bottom: top + barHeight})
+					}];
+				}
 			},
 			window: {innerWidth: 1080, innerHeight: 1920},
 			setTimeout: () => 1,
@@ -305,23 +311,23 @@ describe("WallberryTheme auto-dim", () => {
 		mod.img.onload();
 	}
 
-	it("dims the photo by the contrast behind both bars", () => {
+	it("dims the photo by the contrast behind both bars, under the whole fades", () => {
 		const {mod, calls} = createModuleWithBars({});
 		loadPhoto(mod);
 		assert.equal(mod.photoData.needsDimming, true);
 		assert.equal(calls.length, 1);
 		assert.equal(JSON.stringify(calls[0]), JSON.stringify([
-			{start: 0, end: 250 / 1920, fade: "top"},
-			{start: 1670 / 1920, end: 1, fade: "bottom"}
+			{start: 60 / 1920, end: 160 / 1920, fade: "top", fadeStart: 0, fadeEnd: 250 / 1920},
+			{start: 1760 / 1920, end: 1860 / 1920, fade: "bottom", fadeStart: 1670 / 1920, fadeEnd: 1}
 		]));
 	});
 
-	it("measures a bar taller than the fades' minimum height with its margin", () => {
-		const {mod, calls} = createModuleWithBars({addBackgroundFade: []}, 330);
+	it("measures a fade taller than its minimum height with the bar's margin", () => {
+		const {mod, calls} = createModuleWithBars({}, 330);
 		loadPhoto(mod);
 		assert.equal(JSON.stringify(calls[0]), JSON.stringify([
-			{start: 0, end: 400 / 1920, fade: null},
-			{start: 1520 / 1920, end: 1, fade: null}
+			{start: 60 / 1920, end: 390 / 1920, fade: "top", fadeStart: 0, fadeEnd: 400 / 1920},
+			{start: 1530 / 1920, end: 1860 / 1920, fade: "bottom", fadeStart: 1520 / 1920, fadeEnd: 1}
 		]));
 	});
 
@@ -329,8 +335,8 @@ describe("WallberryTheme auto-dim", () => {
 		const {mod, calls} = createModuleWithBars({addBackgroundFade: ["bottom"]});
 		loadPhoto(mod, 3840);
 		assert.equal(JSON.stringify(calls[0]), JSON.stringify([
-			{start: 0, end: 250 / 3840, fade: null},
-			{start: 1670 / 3840, end: 1920 / 3840, fade: "bottom"}
+			{start: 60 / 3840, end: 160 / 3840, fade: null, fadeStart: 0, fadeEnd: 250 / 3840},
+			{start: 1760 / 3840, end: 1860 / 3840, fade: "bottom", fadeStart: 1670 / 3840, fadeEnd: 1920 / 3840}
 		]));
 	});
 
