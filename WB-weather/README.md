@@ -47,7 +47,8 @@ These general options should honored the same across all weather providers. Spec
 
  * **No API key and no sign-up.** Set `providerName: "openmeteo"` with your `latitude` and `longitude`.
  * **Units:** `units: "imperial"` shows Fahrenheit; any other value, including `"metric"`, `"standard"` and none, shows Celsius. Open-Meteo offers no Kelvin.
- * WB-weather shows no weather icons and no weather description with Open-Meteo yet.
+ * **Icons:** the current weather shows a day or night icon, depending on whether the sun is up at your location; forecast days show the day icon. A forecast day with snowfall or snow in its weather shows the snowflake next to its chance of precipitation, any other day the raindrop.
+ * WB-weather shows no weather description with Open-Meteo yet.
  * If Open-Meteo rejects the request, e.g. for a latitude out of range, WB-weather shows Open-Meteo's reason instead of the weather and does not try again. After a network error, or once Open-Meteo's request limit is reached, it tries again after 15 minutes.
  * **Minimum limit for updateInterval:** 15 minutes, as Open-Meteo does not update its weather data faster than that.
  * **Maximum number of forecast days:** 16 days.

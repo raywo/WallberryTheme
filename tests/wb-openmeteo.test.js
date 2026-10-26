@@ -30,6 +30,13 @@ const FORECAST = {
 	}
 };
 
+// The WMO weather codes Open-Meteo documents for weather_code.
+const WMO_CODES = [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99];
+
+function withCurrent(current) {
+	return {...FORECAST, current: {...FORECAST.current, ...current}};
+}
+
 // Open-Meteo's answer to a latitude out of range, with status 400.
 const INVALID_LATITUDE = {error: true, reason: "Latitude must be in range of -90 to 90°. Given: 151.34."};
 
@@ -107,6 +114,54 @@ describe("WBOpenMeteo", () => {
 			provider.weather.forecast.map((f) => new Date(f.date * 1000).getUTCDay()),
 			[1, 2]
 		);
+	});
+
+	it("shows the night icon for the current weather at night", async () => {
+		const {provider} = await fetchWith(answer(200, FORECAST));
+		assert.equal(provider.weather.wicon, "wi-night-alt-cloudy");
+	});
+
+	it("shows the day icon for the current weather by day", async () => {
+		const {provider} = await fetchWith(answer(200, withCurrent({is_day: 1})));
+		assert.equal(provider.weather.wicon, "wi-day-cloudy");
+	});
+
+	it("shows the day icon for every forecast day", async () => {
+		const {provider} = await fetchWith(answer(200, FORECAST), {...CONFIG, daysToForecast: 3});
+		assert.deepEqual(
+			provider.weather.forecast.map((f) => f.wicon),
+			["wi-day-rain", "wi-day-snow", "wi-cloudy"]
+		);
+	});
+
+	it("shows a neutral icon for an unknown weather code", async () => {
+		const {provider} = await fetchWith(answer(200, withCurrent({weather_code: 4})));
+		assert.equal(provider.weather.wicon, "wi-na");
+	});
+
+	it("gives every weather code Open-Meteo returns a day and a night icon", () => {
+		const {Provider} = load(answer(200, FORECAST));
+		for (const code of WMO_CODES) {
+			for (const isDay of [true, false]) {
+				const icon = Provider.icon(code, isDay);
+				assert.match(icon, /^wi-[a-z-]+$/, `code ${code}`);
+				assert.notEqual(icon, "wi-na", `code ${code}`);
+			}
+		}
+	});
+
+	for (const code of [71, 73, 75, 77, 85, 86]) {
+		it(`expects snow on a day with snow code ${code} but no snowfall`, async () => {
+			const forecast = {...FORECAST, daily: {...FORECAST.daily, weather_code: [code, 3, 3], snowfall_sum: [0, 0, 0]}};
+			const {provider} = await fetchWith(answer(200, forecast));
+			assert.equal(provider.weather.forecast[0].precipType, "snow");
+		});
+	}
+
+	it("expects rain on a day without snow code and snowfall", async () => {
+		const forecast = {...FORECAST, daily: {...FORECAST.daily, weather_code: [3, 3, 3], snowfall_sum: [0, 0, 0]}};
+		const {provider} = await fetchWith(answer(200, forecast));
+		assert.equal(provider.weather.forecast[0].precipType, "rain");
 	});
 
 	it("requests Fahrenheit for imperial units", async () => {
