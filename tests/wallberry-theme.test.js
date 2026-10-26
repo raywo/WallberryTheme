@@ -270,6 +270,95 @@ describe("WallberryTheme background tint", () => {
 	});
 });
 
+describe("WallberryTheme auto-dim", () => {
+	/**
+	 * Creates the WallberryTheme module on a 1080 × 1920 screen whose bar
+	 * regions are barHeight px high and sit 60 px from the top and bottom
+	 * edge, with WBColor replaced by a recorder that answers dim.
+	 */
+	function createModuleWithBars(config, barHeight = 100, dim = true) {
+		const calls = [];
+		const scripts = loadScripts(["WallberryTheme.js"], {
+			document: {
+				createElement: () => ({style: {}}),
+				getElementsByClassName: (name) => {
+					const top = name === "region top bar" ? 60 : 1920 - 60 - barHeight;
+					return [{
+						clientHeight: barHeight,
+						getBoundingClientRect: () => ({top: top, bottom: top + barHeight})
+					}];
+				}
+			},
+			window: {innerWidth: 1080, innerHeight: 1920},
+			setTimeout: () => 1,
+			WBColor: {
+				needsDimming: (img, bars) => {
+					calls.push(bars);
+					return dim;
+				}
+			}
+		});
+		const definition = scripts.modules["WallberryTheme"];
+		const mod = Object.create(definition);
+		mod.config = {...definition.defaults, unsplashAccessKey: "key", ...config};
+		mod.updateDom = () => {};
+		return {mod, calls};
+	}
+
+	function loadPhoto(mod, height = 1920) {
+		mod.processPhoto(PHOTO);
+		mod.img.naturalHeight = height;
+		mod.img.onload();
+	}
+
+	it("dims the photo by the contrast behind both bars, under the whole fades", () => {
+		const {mod, calls} = createModuleWithBars({});
+		loadPhoto(mod);
+		assert.equal(mod.photoData.needsDimming, true);
+		assert.equal(calls.length, 1);
+		assert.equal(JSON.stringify(calls[0]), JSON.stringify([
+			{start: 60 / 1920, end: 160 / 1920, fade: "top", fadeStart: 0, fadeEnd: 250 / 1920},
+			{start: 1760 / 1920, end: 1860 / 1920, fade: "bottom", fadeStart: 1670 / 1920, fadeEnd: 1}
+		]));
+	});
+
+	it("measures a fade taller than its minimum height with the bar's margin", () => {
+		const {mod, calls} = createModuleWithBars({}, 330);
+		loadPhoto(mod);
+		assert.equal(JSON.stringify(calls[0]), JSON.stringify([
+			{start: 60 / 1920, end: 390 / 1920, fade: "top", fadeStart: 0, fadeEnd: 400 / 1920},
+			{start: 1530 / 1920, end: 1860 / 1920, fade: "bottom", fadeStart: 1520 / 1920, fadeEnd: 1}
+		]));
+	});
+
+	it("measures the bars in rows of a photo taller than the screen", () => {
+		const {mod, calls} = createModuleWithBars({addBackgroundFade: ["bottom"]});
+		loadPhoto(mod, 3840);
+		assert.equal(JSON.stringify(calls[0]), JSON.stringify([
+			{start: 60 / 3840, end: 160 / 3840, fade: null, fadeStart: 0, fadeEnd: 250 / 3840},
+			{start: 1760 / 3840, end: 1860 / 3840, fade: "bottom", fadeStart: 1670 / 3840, fadeEnd: 1920 / 3840}
+		]));
+	});
+
+	it("does not check the photo with autoDimOn: false", () => {
+		const {mod, calls} = createModuleWithBars({autoDimOn: false});
+		loadPhoto(mod);
+		assert.equal(calls.length, 0);
+		assert.ok(!mod.photoData.needsDimming);
+	});
+
+	it("shows a dimmed photo at brightImageOpacity, any other at backgroundOpacity", () => {
+		const template = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.njk"), "utf8");
+		assert.match(template, /opacity: {{ config\.brightImageOpacity if photoData\.needsDimming else config\.backgroundOpacity }}/);
+	});
+
+	it("keeps the fades' minimum height in step with the styles", () => {
+		const css = fs.readFileSync(path.join(REPO_ROOT, "css/WallberryTheme.css"), "utf8");
+		const {mod} = createModuleWithBars({});
+		assert.match(css, new RegExp(`\\.wbfade \\{[^}]*min-height: ${mod.fadeMinHeight}px;`));
+	});
+});
+
 describe("WallberryTheme tint styles", () => {
 	const css = fs.readFileSync(path.join(REPO_ROOT, "css/WallberryTheme.css"), "utf8");
 	const supportsStart = css.indexOf("@supports (color: oklch(from red l c h))");

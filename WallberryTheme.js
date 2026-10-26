@@ -31,6 +31,7 @@ Module.register("WallberryTheme", {
 	fetchTimer: null,
 	img: null,
 	requestTimeout: 30 * 1000, // abort an Unsplash request that has not answered after 30 s
+	fadeMinHeight: 250, // px, the min-height of .wbfade in css/WallberryTheme.css
 
 	getStyles: function() {
 		return [
@@ -191,7 +192,7 @@ Module.register("WallberryTheme", {
 		this.img.style.opacity = this.config.backgroundOpacity;
 		this.img.onload = () => {
 			if (this.config.autoDimOn) {
-				this.photoData.isLight = WBColor.isImageLight(this.img);
+				this.photoData.needsDimming = WBColor.needsDimming(this.img, this.getBarAreas(this.img.naturalHeight || this.img.height));
 			}
 			this.updateDom(2000);
 			this.fetchTimer = setTimeout(() => {
@@ -199,9 +200,30 @@ Module.register("WallberryTheme", {
 			}, this.config.updateInterval);
 		};
 
-		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check if it's dark or light)
+		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
 		this.img.src = this.photoData.url;
 		this.photoElement = this.img;
+	},
+
+	// The areas of the photo behind the top and bottom bar, as rows in
+	// fractions of imageHeight: the rows of the bar region, where the text
+	// sits, and the rows of its fade, which is taller. The photo is shown
+	// at its natural size from the top of the screen.
+	getBarAreas: function(imageHeight) {
+		const screenHeight = window.innerHeight;
+		return ["top", "bottom"].map((position) => {
+			const regionClassName = "region " + position + " bar";
+			const region = document.getElementsByClassName(regionClassName)[0].getBoundingClientRect();
+			const fadeHeight = Math.max(this.fadeMinHeight, this.getFadeHeight(regionClassName));
+			const fadeStart = position === "top" ? 0 : screenHeight - fadeHeight;
+			return {
+				start: region.top / imageHeight,
+				end: region.bottom / imageHeight,
+				fade: this.config.addBackgroundFade.includes(position) ? position : null,
+				fadeStart: fadeStart / imageHeight,
+				fadeEnd: (fadeStart + fadeHeight) / imageHeight
+			};
+		});
 	},
 
 	suspend: function() {

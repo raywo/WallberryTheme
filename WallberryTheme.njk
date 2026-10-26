@@ -2,7 +2,7 @@
 	{{ setBackgroundTint(photoData.color) }}
 
 	<div class="wb-unsplash-bg-attribution">{{ "PHOTO_BY" | translate({author: photoData.authorName}) }}</div>
-	<img src="{{ photoElement.src }}" style="opacity: {{ config.brightImageOpacity if photoData.isLight else config.backgroundOpacity }};">
+	<img src="{{ photoElement.src }}" style="opacity: {{ config.brightImageOpacity if photoData.needsDimming else config.backgroundOpacity }};">
 
 	{% if "top" in config.addBackgroundFade %}
 		<div class="topfade wbfade" style="height: {{ getHeight("region top bar") }}px;"></div>
