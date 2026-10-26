@@ -1,6 +1,14 @@
 const {describe, it} = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const {loadScripts} = require("./helpers/load-scripts");
+
+const REPO_ROOT = path.join(__dirname, "..");
+
+function readTranslation(file) {
+	return JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "WB-weather", file), "utf8"));
+}
 
 const SCRIPTS = [
 	"WB-weather/WB-dataObjects.js",
@@ -15,9 +23,10 @@ const SCRIPTS = [
  * definition merged with the user config. Timers fire at once, and
  * `fetch` records the requested URLs without answering.
  */
-function createModule(userConfig) {
+function createModule(userConfig, globals = {}) {
 	const requests = [];
 	const scripts = loadScripts(SCRIPTS, {
+		...globals,
 		setTimeout: (callback) => {
 			callback();
 			return 1;
@@ -93,5 +102,74 @@ describe("WB-weather", () => {
 			module.resume();
 			assert.equal(requests.length, 0);
 		});
+	});
+});
+
+describe("WB-weather translations", () => {
+	const {module} = createModule({providerName: "openmeteo"});
+	const files = module.getTranslations();
+	const EN = readTranslation(files.en);
+
+	it("lists English first, so that MagicMirror² falls back to it", () => {
+		assert.equal(Object.keys(files)[0], "en");
+		assert.ok(files.de);
+	});
+
+	it("translates every key into every language", () => {
+		for (const file of Object.values(files)) {
+			assert.deepEqual(Object.keys(readTranslation(file)).sort(), Object.keys(EN).sort(), file);
+		}
+	});
+
+	it("keeps the placeholders of each English text", () => {
+		const placeholders = (text) => (text.match(/{[^}]+}/g) ?? []).sort();
+		for (const file of Object.values(files)) {
+			const translation = readTranslation(file);
+			for (const key of Object.keys(EN)) {
+				assert.deepEqual(placeholders(translation[key]), placeholders(EN[key]), `${file} ${key}`);
+			}
+		}
+	});
+
+	it("has a text for every description key of the openmeteo provider", () => {
+		const scripts = loadScripts(SCRIPTS);
+		const keys = Object.values(scripts.get("WBOpenMeteo").descriptionKeys);
+		for (const key of keys) {
+			assert.ok(key in EN, key);
+		}
+	});
+});
+
+describe("WB-weather day labels", () => {
+	/**
+	 * Stands in for moment.js, which MagicMirror² provides: records the
+	 * locale set on each date and on moment itself.
+	 */
+	function momentStub() {
+		const calls = {dateLocales: [], globalLocales: []};
+		const moment = {
+			unix: (seconds) => ({
+				locale(language) {
+					calls.dateLocales.push(language);
+					return {format: (pattern) => `${pattern} of ${seconds} in ${language}`};
+				}
+			}),
+			locale: (language) => calls.globalLocales.push(language)
+		};
+		return {moment, calls};
+	}
+
+	it("names the weekday in MagicMirror²'s language", () => {
+		const {moment, calls} = momentStub();
+		const {module} = createModule({providerName: "openmeteo"}, {moment, config: {language: "de", units: "metric"}});
+		assert.equal(module.dayLabel(1793012400), "ddd of 1793012400 in de");
+		assert.deepEqual(calls.dateLocales, ["de"]);
+	});
+
+	it("leaves moment's global locale to other modules", () => {
+		const {moment, calls} = momentStub();
+		const {module} = createModule({providerName: "openmeteo"}, {moment});
+		module.dayLabel(1793012400);
+		assert.deepEqual(calls.globalLocales, []);
 	});
 });
