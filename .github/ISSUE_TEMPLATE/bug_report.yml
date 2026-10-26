@@ -1,0 +1,61 @@
+name: Bug report
+description: Something in WallberryTheme, WB-clock or WB-weather does not work as expected.
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected module
+      options:
+        - WallberryTheme (background photo)
+        - WB-clock
+        - WB-weather
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happens
+      description: Describe what you see, and the steps that lead there.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: errors
+    attributes:
+      label: Error messages
+      description: |
+        Check the browser console and the MagicMirror log. In Electron,
+        Ctrl+Shift+I opens the dev tools; `npm start dev` starts
+        MagicMirror with them open.
+      render: text
+  - type: textarea
+    id: config
+    attributes:
+      label: Module configuration
+      description: |
+        The config.js section of the affected module.
+        **Remove API keys before posting.**
+      render: javascript
+  - type: input
+    id: mm-version
+    attributes:
+      label: MagicMirror version
+      description: Shown in MagicMirror's package.json, e.g. 2.29.0.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Device and how the mirror is displayed, e.g. "Raspberry Pi 4, Electron" or "server mode, Chrome on a tablet".
+  - type: textarea
+    id: context
+    attributes:
+      label: Screenshots and other context
