@@ -9,7 +9,7 @@
 * This is the base class representing a weather provider for WB-Weather.
 * @class
 * @param {Object} config - The config object passed to the WB-weather module
-* @param {Object} delegate - The delegate that should be informed when the provider has a weather update. delegate must implement the function updateAvailable()
+* @param {Object} delegate - The delegate that should be informed when the provider has a weather update. delegate must implement the function updateAvailable(); its translate(key) returns the text of a key in WB-weather's translations/
 */
 class WBProvider {
 	constructor(config, delegate) {

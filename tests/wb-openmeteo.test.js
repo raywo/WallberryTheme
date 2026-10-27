@@ -1,0 +1,264 @@
+const {describe, it} = require("node:test");
+const assert = require("node:assert/strict");
+const {loadScripts} = require("./helpers/load-scripts");
+
+const SCRIPTS = [
+	"WB-weather/WB-dataObjects.js",
+	"WB-weather/WB-provider.js",
+	"WB-weather/providers/WB-openmeteo.js"
+];
+
+const CONFIG = {
+	providerName: "openmeteo",
+	latitude: 51.34,
+	longitude: 12.37,
+	units: "metric",
+	language: "en",
+	daysToForecast: 2
+};
+
+// An answer of Open-Meteo, shortened to three days.
+const FORECAST = {
+	current: {time: 1793043900, interval: 900, temperature_2m: 8.4, weather_code: 2, is_day: 0},
+	daily: {
+		time: [1792969200, 1793055600, 1793142000],
+		weather_code: [61, 71, 3],
+		temperature_2m_max: [12.9, 1.5, 14.5],
+		temperature_2m_min: [7.6, -2.3, 8.1],
+		precipitation_probability_max: [10, 70, 5],
+		snowfall_sum: [0.00, 2.10, 0.00]
+	}
+};
+
+// The WMO weather codes Open-Meteo documents for weather_code.
+const WMO_CODES = [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99];
+
+function withCurrent(current) {
+	return {...FORECAST, current: {...FORECAST.current, ...current}};
+}
+
+// Open-Meteo's answer to a latitude out of range, with status 400.
+const INVALID_LATITUDE = {error: true, reason: "Latitude must be in range of -90 to 90°. Given: 151.34."};
+
+/**
+ * Loads the Open-Meteo provider with a stubbed `fetch` and returns the
+ * provider class and the requested URLs.
+ */
+function load(fetchStub) {
+	const requests = [];
+	const scripts = loadScripts(SCRIPTS, {
+		fetch: (url) => {
+			requests.push(url);
+			return fetchStub(url);
+		}
+	});
+	return {Provider: scripts.get("WBProviderManager").providers.openmeteo, requests, log: scripts.log};
+}
+
+/**
+ * Runs one fetch of the provider and resolves once the provider has
+ * told its delegate.
+ */
+function fetchWith(fetchStub, config = CONFIG) {
+	const {Provider, requests} = load(fetchStub);
+	return new Promise((resolve) => {
+		const delegate = {
+			updateAvailable: () => resolve({provider, requests}),
+			translate: (key) => `text of ${key}`
+		};
+		const provider = new Provider(config, delegate);
+		provider.fetchWeather();
+	});
+}
+
+function answer(status, body) {
+	return () => Promise.resolve({
+		ok: status >= 200 && status < 300,
+		status,
+		json: () => Promise.resolve(body)
+	});
+}
+
+function query(url) {
+	return new URL(url).searchParams;
+}
+
+describe("WBOpenMeteo", () => {
+	it("requests current weather and the daily forecast without a key", async () => {
+		const {requests} = await fetchWith(answer(200, FORECAST));
+		assert.equal(requests.length, 1);
+		assert.match(requests[0], /^https:\/\/api\.open-meteo\.com\/v1\/forecast\?/);
+		const params = query(requests[0]);
+		assert.equal(params.get("latitude"), "51.34");
+		assert.equal(params.get("longitude"), "12.37");
+		assert.equal(params.get("current"), "temperature_2m,weather_code,is_day");
+		assert.equal(params.get("daily"), "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,snowfall_sum");
+		assert.equal(params.get("timezone"), "auto");
+		assert.equal(params.get("timeformat"), "unixtime");
+		assert.equal(params.get("forecast_days"), "2");
+	});
+
+	it("fills current temperature and one forecast per day", async () => {
+		const {provider} = await fetchWith(answer(200, FORECAST));
+		assert.equal(provider.error, null);
+		assert.equal(provider.weather.temp, 8.4);
+		assert.deepEqual(
+			provider.weather.forecast.map((f) => [f.date, f.precipChance, f.precipType, f.minTemp, f.maxTemp]),
+			[
+				[1793012400, 10, "rain", 7.6, 12.9],
+				[1793098800, 70, "snow", -2.3, 1.5]
+			]
+		);
+	});
+
+	it("dates each forecast so a clock in UTC reads the location's weekday", async () => {
+		// Leipzig's Monday and Tuesday start at 23:00 UTC of the day before
+		const {provider} = await fetchWith(answer(200, FORECAST));
+		assert.deepEqual(
+			provider.weather.forecast.map((f) => new Date(f.date * 1000).getUTCDay()),
+			[1, 2]
+		);
+	});
+
+	it("shows the night icon for the current weather at night", async () => {
+		const {provider} = await fetchWith(answer(200, FORECAST));
+		assert.equal(provider.weather.wicon, "wi-night-alt-cloudy");
+	});
+
+	it("shows the day icon for the current weather by day", async () => {
+		const {provider} = await fetchWith(answer(200, withCurrent({is_day: 1})));
+		assert.equal(provider.weather.wicon, "wi-day-cloudy");
+	});
+
+	it("shows the day icon for every forecast day", async () => {
+		const {provider} = await fetchWith(answer(200, FORECAST), {...CONFIG, daysToForecast: 3});
+		assert.deepEqual(
+			provider.weather.forecast.map((f) => f.wicon),
+			["wi-day-rain", "wi-day-snow", "wi-cloudy"]
+		);
+	});
+
+	it("shows a neutral icon for an unknown weather code", async () => {
+		const {provider} = await fetchWith(answer(200, withCurrent({weather_code: 4})));
+		assert.equal(provider.weather.wicon, "wi-na");
+	});
+
+	it("gives every weather code Open-Meteo returns a day and a night icon", () => {
+		const {Provider} = load(answer(200, FORECAST));
+		for (const code of WMO_CODES) {
+			for (const isDay of [true, false]) {
+				const icon = Provider.icon(code, isDay);
+				assert.match(icon, /^wi-[a-z-]+$/, `code ${code}`);
+				assert.notEqual(icon, "wi-na", `code ${code}`);
+			}
+		}
+	});
+
+	it("describes the current weather with the text of its code's key", async () => {
+		const {provider} = await fetchWith(answer(200, FORECAST));
+		assert.equal(provider.weather.longDescription, "text of WMO_PARTLY_CLOUDY");
+	});
+
+	it("gives no description for an unknown weather code", async () => {
+		const {provider} = await fetchWith(answer(200, withCurrent({weather_code: 4})));
+		assert.equal(provider.error, null);
+		assert.equal(provider.weather.longDescription, null);
+	});
+
+	it("gives every weather code Open-Meteo returns a description key", () => {
+		const {Provider} = load(answer(200, FORECAST));
+		for (const code of WMO_CODES) {
+			assert.match(Provider.descriptionKey(code) ?? "", /^WMO_[A-Z_]+$/, `code ${code}`);
+		}
+	});
+
+	it("describes each code group with its own key", () => {
+		const {Provider} = load(answer(200, FORECAST));
+		const groups = [
+			[[0], "WMO_CLEAR"],
+			[[1], "WMO_MAINLY_CLEAR"],
+			[[2], "WMO_PARTLY_CLOUDY"],
+			[[3], "WMO_OVERCAST"],
+			[[45, 48], "WMO_FOG"],
+			[[51, 53, 55], "WMO_DRIZZLE"],
+			[[56, 57], "WMO_FREEZING_DRIZZLE"],
+			[[61, 63, 65], "WMO_RAIN"],
+			[[66, 67], "WMO_FREEZING_RAIN"],
+			[[71, 73, 75], "WMO_SNOW"],
+			[[77], "WMO_SNOW_GRAINS"],
+			[[80, 81, 82], "WMO_RAIN_SHOWERS"],
+			[[85, 86], "WMO_SNOW_SHOWERS"],
+			[[95], "WMO_THUNDERSTORM"],
+			[[96, 99], "WMO_THUNDERSTORM_HAIL"]
+		];
+		for (const [codes, key] of groups) {
+			for (const code of codes) {
+				assert.equal(Provider.descriptionKey(code), key, `code ${code}`);
+			}
+		}
+	});
+
+	for (const code of [71, 73, 75, 77, 85, 86]) {
+		it(`expects snow on a day with snow code ${code} but no snowfall`, async () => {
+			const forecast = {...FORECAST, daily: {...FORECAST.daily, weather_code: [code, 3, 3], snowfall_sum: [0, 0, 0]}};
+			const {provider} = await fetchWith(answer(200, forecast));
+			assert.equal(provider.weather.forecast[0].precipType, "snow");
+		});
+	}
+
+	it("expects rain on a day without snow code and snowfall", async () => {
+		const forecast = {...FORECAST, daily: {...FORECAST.daily, weather_code: [3, 3, 3], snowfall_sum: [0, 0, 0]}};
+		const {provider} = await fetchWith(answer(200, forecast));
+		assert.equal(provider.weather.forecast[0].precipType, "rain");
+	});
+
+	it("requests Fahrenheit for imperial units", async () => {
+		const {requests} = await fetchWith(answer(200, FORECAST), {...CONFIG, units: "imperial"});
+		assert.equal(query(requests[0]).get("temperature_unit"), "fahrenheit");
+	});
+
+	for (const units of ["metric", "standard", undefined]) {
+		it(`requests Celsius for units ${units}`, async () => {
+			const {requests} = await fetchWith(answer(200, FORECAST), {...CONFIG, units});
+			assert.equal(query(requests[0]).has("temperature_unit"), false);
+		});
+	}
+
+	it("forecasts at most 16 days", () => {
+		const {Provider} = load(answer(200, FORECAST));
+		const provider = new Provider({...CONFIG, daysToForecast: 20}, {updateAvailable: () => {}});
+		assert.equal(provider.daysToForecast, 16);
+		assert.equal(query(provider.url).get("forecast_days"), "16");
+	});
+
+	it("updates at most every 15 minutes", () => {
+		const {Provider} = load(answer(200, FORECAST));
+		const provider = new Provider({...CONFIG, updateInterval: 60 * 1000}, {updateAvailable: () => {}});
+		assert.equal(provider.updateInterval, 15 * 60 * 1000);
+	});
+
+	it("shows Open-Meteo's reason and stops for a rejected request", async () => {
+		const {provider} = await fetchWith(answer(400, INVALID_LATITUDE));
+		assert.equal(provider.weather, null);
+		assert.equal(provider.error.isTemporary, false);
+		assert.equal(provider.error.description, INVALID_LATITUDE.reason);
+	});
+
+	it("retries after a network error", async () => {
+		const {provider} = await fetchWith(() => Promise.reject(new TypeError("Failed to fetch")));
+		assert.equal(provider.error.isTemporary, true);
+		assert.equal(provider.error.description, "Failed to fetch");
+		assert.equal(provider.error.retryDelay, 15 * 60 * 1000);
+	});
+
+	it("retries after Open-Meteo's request limit is reached", async () => {
+		const {provider} = await fetchWith(answer(429, {error: true, reason: "Daily API request limit exceeded. Please try again tomorrow."}));
+		assert.equal(provider.error.isTemporary, true);
+		assert.equal(provider.error.description, "Daily API request limit exceeded. Please try again tomorrow.");
+	});
+
+	it("retries after a server error", async () => {
+		const {provider} = await fetchWith(answer(502, {error: true, reason: "Bad gateway"}));
+		assert.equal(provider.error.isTemporary, true);
+	});
+});

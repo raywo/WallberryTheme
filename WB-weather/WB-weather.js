@@ -7,10 +7,10 @@
 Module.register("WB-weather", {
 	// Module config defaults.
 	defaults: {
-		providerName: "openweathermap",
+		providerName: null, // REQUIRED, one of providerNames
 		template: "classic-wallberry",
 
-		apiKey: null, // REQUIRED
+		apiKey: null, // REQUIRED by openweathermap
 		latitude: null, // REQUIRED
 		longitude: null, // REQUIRED
 
@@ -22,24 +22,33 @@ Module.register("WB-weather", {
 		initialLoadDelay: 1000
 	},
 
+	// the providers in providers/, for the error on a missing providerName
+	providerNames: ["openmeteo", "openweathermap"],
+
 	fetchTimer: null,
 	provider: null,
 	weather: null,
 	error: null,
 
+	// English comes first: MagicMirror falls back to the first file for a
+	// language without a translation.
 	getTranslations: function() {
 		return {
-			en: "translations/en.json"
+			en: "translations/en.json",
+			de: "translations/de.json"
 		};
 	},
 
 	getScripts: function() {
-		return [
+		let scripts = [
 			"moment.js",
 			"WB-dataObjects.js",
-			"WB-provider.js",
-			this.file("providers/WB-" + this.config.providerName + ".js")
+			"WB-provider.js"
 		];
+		if (this.config.providerName) {
+			scripts.push(this.file("providers/WB-" + this.config.providerName + ".js"));
+		}
+		return scripts;
 	},
 
 	getStyles: function() {
@@ -62,11 +71,20 @@ Module.register("WB-weather", {
 
 	start: function() {
 		Log.info(`Starting module: ${this.name}`);
-		// lower case helps eliminate user error in writing config options
-		this.config.providerName = this.config.providerName.toLowerCase();
 		this.config.template = this.config.template.toLowerCase();
 
 		this.addNunjuckFilters();
+
+		if (!this.config.providerName) {
+			let names = this.providerNames.map(name => `"${name}"`).join(" or ");
+			let message = `WB-weather needs the providerName option. Add providerName: ${names} to the module's config.`;
+			this.error = new WBError(false, message);
+			Log.error(message);
+			return;
+		}
+
+		// lower case helps eliminate user error in writing config options
+		this.config.providerName = this.config.providerName.toLowerCase();
 
 		this.provider = WBProviderManager.initialize(this.config, this);
 		if (this.provider == null) {
@@ -86,7 +104,10 @@ Module.register("WB-weather", {
 	resume: function() {
 		Log.info(`Resuming module: ${this.name}`);
 		clearTimeout(this.fetchTimer);
-		this.scheduleUpdate(this.config.initialLoadDelay);
+		// without a provider, start() has set the error and there is nothing to fetch
+		if (this.provider !== null) {
+			this.scheduleUpdate(this.config.initialLoadDelay);
+		}
 	},
 
 	// gets called by the weather provider when it has an update available
@@ -132,9 +153,8 @@ Module.register("WB-weather", {
 
 	addNunjuckFilters: function() {
 		this.nunjucksEnvironment().addFilter("dayLabel", function(timestamp) {
-			var date = new Date(timestamp * 1000);
-			return moment.weekdaysShort(date.getDay());
-		});
+			return this.dayLabel(timestamp);
+		}.bind(this));
 
 		this.nunjucksEnvironment().addFilter("precipIcons", function(precipType) {
 			return this.precipitationTypes[precipType];
@@ -143,6 +163,14 @@ Module.register("WB-weather", {
 		this.nunjucksEnvironment().addFilter("translate", function(str, variables) {
 			return this.translate(str, variables);
 		}.bind(this));
+	},
+
+	// The short weekday of a Unix timestamp, in the language MagicMirror
+	// translates into. Sets the locale on the date only: MagicMirror does not
+	// set moment's global locale, and WB-weather must not rely on another
+	// module such as WB-clock doing it.
+	dayLabel: function(timestamp) {
+		return moment.unix(timestamp).locale(config.language).format("ddd");
 	},
 
 	// wi names for main precipitation types.

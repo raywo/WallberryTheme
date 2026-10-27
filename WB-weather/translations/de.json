@@ -1,0 +1,23 @@
+{
+	"WLOADING": "Wetterdaten werden geladen …",
+
+	"TODAY": "Heute",
+	"ERROR": "Fehler beim Abrufen des Wetters:",
+	"RETRYING": "Vermutlich ein Netzwerkproblem; neuer Versuch in {delay} Sekunden.",
+
+	"WMO_CLEAR": "Klar",
+	"WMO_MAINLY_CLEAR": "Überwiegend klar",
+	"WMO_PARTLY_CLOUDY": "Teilweise bewölkt",
+	"WMO_OVERCAST": "Bedeckt",
+	"WMO_FOG": "Nebel",
+	"WMO_DRIZZLE": "Nieselregen",
+	"WMO_FREEZING_DRIZZLE": "Gefrierender Nieselregen",
+	"WMO_RAIN": "Regen",
+	"WMO_FREEZING_RAIN": "Gefrierender Regen",
+	"WMO_SNOW": "Schnee",
+	"WMO_SNOW_GRAINS": "Schneegriesel",
+	"WMO_RAIN_SHOWERS": "Regenschauer",
+	"WMO_SNOW_SHOWERS": "Schneeschauer",
+	"WMO_THUNDERSTORM": "Gewitter",
+	"WMO_THUNDERSTORM_HAIL": "Gewitter mit Hagel"
+}

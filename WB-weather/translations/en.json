@@ -3,5 +3,21 @@
 
 	"TODAY": "Today",
 	"ERROR": "Error fetching weather:",
-	"RETRYING": "This is probably due to a network issue; Retrying in {delay} seconds."
+	"RETRYING": "This is probably due to a network issue; Retrying in {delay} seconds.",
+
+	"WMO_CLEAR": "Clear",
+	"WMO_MAINLY_CLEAR": "Mainly clear",
+	"WMO_PARTLY_CLOUDY": "Partly cloudy",
+	"WMO_OVERCAST": "Overcast",
+	"WMO_FOG": "Fog",
+	"WMO_DRIZZLE": "Drizzle",
+	"WMO_FREEZING_DRIZZLE": "Freezing drizzle",
+	"WMO_RAIN": "Rain",
+	"WMO_FREEZING_RAIN": "Freezing rain",
+	"WMO_SNOW": "Snow",
+	"WMO_SNOW_GRAINS": "Snow grains",
+	"WMO_RAIN_SHOWERS": "Rain showers",
+	"WMO_SNOW_SHOWERS": "Snow showers",
+	"WMO_THUNDERSTORM": "Thunderstorm",
+	"WMO_THUNDERSTORM_HAIL": "Thunderstorm with hail"
 }

@@ -4,33 +4,29 @@ The `WallberryTheme` module re-themes [MagicMirror²](https://github.com/MagicMi
 
 The WallberryTheme also comes packaged with two companion modules for displaying the time (`WB-clock`) and weather (`WB-weather`).
 
-This is a fork of [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme), created by Jess Coulter. The original repository is no longer updated; this fork picks up fixes and updates on a best-effort basis.
+## About this fork
 
- **REQUIRED API KEYS:**
+This is a fork of [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme), created by Jess Coulter. The original is no longer updated: its last release, 3.1.0, came out in 2021, and its weather module has stopped working since, as Apple shut down Dark Sky's API and OpenWeatherMap shut down One Call 2.5. This fork keeps the theme running on current MagicMirror² installations: it brings back the weather, with a provider that needs no API key, and fixes the bugs it finds along the way.
 
-- A (free) Unsplash API key is required and can be obtained from [Unsplash.com](https://unsplash.com/developers).
-- For the weather module, an OpenWeatherMap API key with the "One Call by Call" subscription is required, which is free up to 1,000 calls per day but requires a payment method; see [WB-weather's OpenWeatherMap section](WB-weather/README.md#openweathermap).
+Fixes and updates come on a best-effort basis, without fixed release dates. Please report bugs and suggest features in this repository's [issues](https://github.com/raywo/WallberryTheme/issues), not in the original's.
 
-## New and Shiny in 3.0.0
-
-The [WB-weather](WB-weather/README.md) companion module has now been completely refactored with some great new features:
-
-- **OpenWeatherMap is now the default weather provider.**
-- New weather providers can be easily integrated by subclassing WB-weather's new `WBProvider` class.
-- New config option for choosing which display template to use, so you can easily change how the weather is displayed by adding new templates.
-
-
- Go check out the details in [WB-weather's README](WB-weather/README.md).
+Already running the original? See [Switching from the original](#switching-from-the-original).
 
 ## Screenshots
 <p align="center">
-<img style="flat: left; width: 50%;" src="screenshots/wb-screen1.jpg">
+<img style="float: left; width: 50%;" src="screenshots/wb-screen1.jpg">
 <img style="float: left; width: 50%;" src="screenshots/wb-screen2.jpg">
 </p>
 
-## Now With More Options For Bright Images!
+## Features
 
-WallberryTheme has new options for dealing with light text on bright background images!
+- **A new photo every few minutes:** WallberryTheme shows a random photo from Unsplash as the mirror's background, optionally from your own collections or matching your search queries.
+- **Readable on bright photos:** soft fades behind the top and bottom bar regions and an automatic dimming of bright photos keep white text legible (see below).
+- **WB-clock** shows the local time and date and, optionally, the time in other cities. See [WB-clock's README](WB-clock/README.md).
+- **WB-weather** shows the current weather and a forecast of several days, from [Open-Meteo](https://open-meteo.com/), which needs no API key, or from [OpenWeatherMap](https://openweathermap.org/). You choose how it looks with display templates, and further weather providers can be added by subclassing its `WBProvider` class. See [WB-weather's README](WB-weather/README.md).
+- **English and German:** the texts of WallberryTheme and WB-weather follow the `language` of your MagicMirror config.
+
+### Options for bright images
 
 - The `addBackgroundFade` option allows you to add soft gradient backgrounds to the top and bottom regions of your magic mirror, providing more contrast for the modules in those regions. These gradients use Unsplash's color data to automatically shift to the general color hue of the photo, so they blend better with the image. A browser without CSS relative colour syntax (older than Chromium 119, Firefox 128 or Safari 18), which can only show the mirror in server-only mode, shows neutral dark gradients instead.
 
@@ -42,7 +38,38 @@ WallberryTheme has new options for dealing with light text on bright background 
 **With addBackgroundFade and autoDimOn (on their default settings):**
 <img src="screenshots/autodim-on.png">
 
-## Using the module
+## Differences from the original
+
+Compared with the original's last release, 3.1.0, this fork changes the following. The [Changelog](CHANGELOG.md) lists every change.
+
+**Weather (WB-weather)**
+
+- **Open-Meteo, without an API key:** the new provider `"openmeteo"` needs only your latitude and longitude. It shows day and night icons and describes the weather in words, e.g. "Partly cloudy", in English or German.
+- **`providerName` is required:** WB-weather no longer falls back to a provider; a config without `providerName` shows an error instead of the weather.
+- **Dark Sky is gone:** Apple shut down Dark Sky's API in 2023. A config with `providerName: "darksky"` or `darkSkyApiKey` shows an error instead of the weather.
+- **OpenWeatherMap uses One Call 3.0:** One Call 2.5, which the original calls, has been shut down. Your OpenWeatherMap key needs the "One Call by Call" subscription, which is free up to 1,000 calls per day but requires a payment method.
+- The `classic-wallberry` template shows the forecast in one row next to the current weather.
+- The forecast names the weekdays in your `language` also without WB-clock, and OpenWeatherMap describes the weather in your `language`.
+
+**Background (WallberryTheme)**
+
+- `autoDimOn` dims a photo when white text would be hard to read behind the top or bottom bar, instead of counting light pixels over the whole photo.
+- The tints of the background and the fades look equally dark whatever the photo's colour.
+- The photo loads also when Electron is not installed, and the theme keeps changing photos after Unsplash answers with an error, e.g. when the rate limit is exceeded.
+- The photo attribution, the loading message and the error messages are available in German.
+
+**Clock and font**
+
+- WB-clock shows the date in the word order of your `language`, e.g. "Montag, 26. Oktober" for German.
+- The Rubik font covers characters beyond basic Latin, such as in "Łódź" or "Plzeň".
+
+## Required API keys
+
+- A (free) Unsplash API key is required and can be obtained from [Unsplash.com](https://unsplash.com/developers).
+
+WB-weather needs no API key with its Open-Meteo provider. If you prefer OpenWeatherMap, see [WB-weather's weather providers](WB-weather/README.md#available-weather-providers) for the key it needs.
+
+## Installation
 
 To use this module and its companion modules:
 1.  Clone this repository into your `MagicMirror/modules` directory:
@@ -81,13 +108,45 @@ modules: [
     position: "bottom_bar",  // Highly suggested location
     config: {
       // See "Configuration options" for more information.
-      apiKey: "Your openweathermap API key", // REQUIRED
+      providerName: "openmeteo", // REQUIRED
       latitude:   47.603230, // REQUIRED
       longitude: -122.330276 // REQUIRED
     }
   }
 ]
 ````
+
+## Updating
+
+To update to the latest version, pull it into your clone and restart MagicMirror:
+
+```bash
+cd ~/MagicMirror/modules/WallberryTheme
+git pull
+```
+
+Before you update, check the [Changelog](CHANGELOG.md) for changes marked **Breaking**: they need a change to your config.
+
+## Switching from the original
+
+If you installed the original from delightedCrow/WallberryTheme, you switch to this fork in your existing clone; your config stays where it is.
+
+1.  Point your clone at this fork and check out its `main` branch – the original's branch is called `master`:
+    ```bash
+    cd ~/MagicMirror/modules/WallberryTheme
+    git remote set-url origin https://github.com/raywo/WallberryTheme.git
+    git fetch origin
+    git checkout -B main origin/main
+    ```
+    From then on, `git pull` updates from this fork.
+2.  Change your WB-weather config in `config/config.js`:
+    - Add `providerName`, which is required now. For a weather without an API key, use `providerName: "openmeteo"` with your `latitude` and `longitude`, and remove `apiKey`.
+    - If you used Dark Sky, remove `providerName: "darksky"` and `darkSkyApiKey` and use `providerName: "openmeteo"`.
+    - If you keep OpenWeatherMap, set `providerName: "openweathermap"` and add the "One Call by Call" subscription to your key.
+
+    [WB-weather's README](WB-weather/README.md#upgrading-from-an-earlier-version) explains each case.
+3.  If your WB-clock config has `OtherCities`, rename it to `otherCities`: the original's WB-clock README named it with a capital O, which WB-clock ignores.
+4.  Restart MagicMirror.
 
 ## Configuration options
 
@@ -151,6 +210,13 @@ Huge thanks to everyone who has contributed and made the WallberryTheme better!
 - [Jess Coulter (delightedCrow)](https://github.com/delightedCrow) created the WallberryTheme and its companion modules and maintained them up to version 3.1.0. Thank you for this beautiful theme <3
 - Thanks to the magnificent MagicMirror² community, y'all are creative and awesome <3
 - The APCA contrast formula in [colorHelpers.js](colorHelpers.js) is adapted from `contrastAPCA` of [chroma.js](https://github.com/gka/chroma.js) by Gregor Aisch (BSD licence, notice in the file), which implements the [APCA](https://github.com/Myndex/apca-w3) contrast prediction by Myndex.
+
+## License
+
+WallberryTheme is released under the [MIT License](LICENSE).
+
+- Copyright (c) 2018 Jess Coulter, for the original WallberryTheme
+- Copyright (c) 2026 Ray Wojciechowski, for the changes in this fork
 
 ## Changelog
 

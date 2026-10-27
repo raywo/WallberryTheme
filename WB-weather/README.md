@@ -1,5 +1,5 @@
 # Module: WB-weather
-The `WB-weather` module was designed to complement the `WallberryTheme` module and displays the current weather and forecast. It uses [OpenWeatherMap](https://openweathermap.org/) as its default weather provider, but it can be easily configured to use other weather providers instead.
+The `WB-weather` module was designed to complement the `WallberryTheme` module and displays the current weather and forecast. It gets the weather from the provider you choose with `providerName`: [Open-Meteo](https://open-meteo.com/), which needs no API key, or [OpenWeatherMap](https://openweathermap.org/).
 
 ## Using the module
 
@@ -11,7 +11,7 @@ modules: [
 		position: "bottom_bar",  // Highly suggested location
 		config: {
 			// See "Configuration options" for more information.
-			apiKey: "add your OpenWeatherMap API KEY here",
+			providerName: "openmeteo",
 			latitude:   47.603230,
 			longitude: -122.330276
 		}
@@ -19,29 +19,71 @@ modules: [
 ]
 ````
 
+Without `providerName`, WB-weather shows an error naming the possible values instead of the weather.
+
+### Upgrading from an earlier version
+
+ * **Your config has no `providerName`:** add `providerName: "openweathermap"` to keep OpenWeatherMap, which needs a new subscription (see the last point), or replace your `apiKey` with `providerName: "openmeteo"` to use Open-Meteo without a key.
+ * **You used Dark Sky** (`providerName: "darksky"` or `darkSkyApiKey`): Apple has shut down Dark Sky's API, and WB-weather no longer supports it. Replace both with `providerName: "openmeteo"`; Open-Meteo needs no key.
+ * **You used OpenWeatherMap before One Call 3.0:** WB-weather no longer calls the shut-down One Call 2.5, and your key needs the "One Call by Call" subscription for One Call 3.0 (see [OpenWeatherMap](#openweathermap) below). Without it, WB-weather shows OpenWeatherMap's error message instead of the weather. Subscribe, or set `providerName: "openmeteo"` and remove your `apiKey`.
+
 ## General Configuration Options
 
 These general options should honored the same across all weather providers. Specific weather providers may provide further options.
 
 | Option                      | Default            | Type       | Description
 | ----------------------------|--------------------| -----------|------------
-| `apiKey` <br>**REQUIRED**   | None               |String      | The API key for your weather provider.
+| `providerName` <br>**REQUIRED** | None           |String      | The name of your weather provider. <br><br> **Possible values:** `"openmeteo"`, `"openweathermap"` (See available weather providers below).
 | `latitude` <br>**REQUIRED** | None               |Number      | Your current latitude.
 | `longitude` <br>**REQUIRED**| None               |Number      | Your current longitude.
-| providerName                | "openweathermap"   |String      | The name of your weather provider (See available weather providers below).
+| `apiKey`                    | None               |String      | The API key for your weather provider, if it needs one. Open-Meteo needs none; OpenWeatherMap requires one.
 | template                    | "classic-wallberry"|String      | The name of your weather template. (See available templates below).
 | `units`                     | config.units       |String      | What temperature units to use. **Possible values:** `"imperial"`, `"metric"`, `"standard"`<br>
-| `language`                  | config.language    |String      | What language to use. <br><br> **Possible values:** `en`, `nl`, `ru`, etc...<br>
-| `daysToForecast`            | 4                  |Number      | How many days to forecast in weekly forecast. <br><br> **Possible values:** Varies by provider. <br>
-| `updateInterval`            | `600000` (10 minutes)|Number    | How often to fetch new weather data (Milliseconds). Limits vary by provider.
+| `language`                  | config.language    |String      | The language OpenWeatherMap describes the weather in. <br><br> **Possible values:** `en`, `nl`, `ru`, etc...<br><br> WB-weather's own texts, the weekdays of the forecast and Open-Meteo's description follow the `language` of your MagicMirror config instead; WB-weather's own texts are in English and German.<br>
+| `daysToForecast`            | 4                  |Number      | How many days to forecast in weekly forecast. <br><br> **Possible values:** Varies by provider. With the `classic-wallberry` template on a 1080 px wide portrait screen, up to 5 days fit in one row next to the current weather. <br>
+| `updateInterval`            | The provider's minimum|Number   | How often to fetch new weather data (Milliseconds). Limits vary by provider: 15 minutes for Open-Meteo, 10 minutes for OpenWeatherMap.
 
 -------------------------------
 
 ## Available Weather Providers
 
-### OpenWeatherMap
+### Open-Meteo
 
-OpenWeatherMap is currently the default weather provider for WB-weather.
+[Open-Meteo](https://open-meteo.com/) is free for non-commercial use and needs no API key.
+
+ * **No API key and no sign-up.** Set `providerName: "openmeteo"` with your `latitude` and `longitude`.
+ * **Units:** `units: "imperial"` shows Fahrenheit; any other value, including `"metric"`, `"standard"` and none, shows Celsius. Open-Meteo offers no Kelvin.
+ * **Icons:** the current weather shows a day or night icon, depending on whether the sun is up at your location; forecast days show the day icon. A forecast day with snowfall or snow in its weather shows the snowflake next to its chance of precipitation, any other day the raindrop.
+ * **Description:** Open-Meteo sends no text, so WB-weather describes the current weather itself, e.g. “Partly cloudy”, in the `language` of your MagicMirror config: English or German, any other language shows English.
+ * If Open-Meteo rejects the request, e.g. for a latitude out of range, WB-weather shows Open-Meteo's reason instead of the weather and does not try again. After a network error, or once Open-Meteo's request limit is reached, it tries again after 15 minutes.
+ * **Minimum limit for updateInterval:** 15 minutes, as Open-Meteo does not update its weather data faster than that.
+ * **Maximum number of forecast days:** 16 days.
+
+#### Open-Meteo Configuration Options
+
+| Option                      | Default            | Type       | Description
+| ----------------------------|--------------------| -----------|------------
+| `providerName` <br>**REQUIRED** | None           |String      | `"openmeteo"`
+| `latitude` <br>**REQUIRED** | None               |Number      | Your current latitude.
+| `longitude` <br>**REQUIRED**| None               |Number      | Your current longitude.
+
+#### Sample WB-weather config Using Open-Meteo
+
+````javascript
+modules: [
+	{
+		module: "WallberryTheme/WB-weather",
+		position: "bottom_bar",  // Highly suggested location
+		config: {
+			providerName: "openmeteo",
+			latitude:   47.603230,
+			longitude: -122.330276
+		}
+	}
+]
+````
+
+### OpenWeatherMap
 
  * **Sign up for an API key at [https://openweathermap.org/api](https://openweathermap.org/api)**.
  * **Your key needs the "One Call by Call" subscription.** WB-weather uses the [One Call API 3.0](https://openweathermap.org/api/one-call-3), which OpenWeatherMap offers only as this separate subscription, even with a free account. Subscribe on [https://openweathermap.org/api/one-call-3](https://openweathermap.org/api/one-call-3).
@@ -54,10 +96,10 @@ OpenWeatherMap is currently the default weather provider for WB-weather.
 
 | Option                      | Default            | Type       | Description
 | ----------------------------|--------------------| -----------|------------
+| `providerName` <br>**REQUIRED** | None           |String      | `"openweathermap"`
 | `apiKey` <br>**REQUIRED**   | None               |String      | Your OpenWeatherMap API Key.
 | `latitude` <br>**REQUIRED** | None               |Number      | Your current latitude.
 | `longitude` <br>**REQUIRED**| None               |Number      | Your current longitude.
-| providerName                | "openweathermap"   |String      | The providerName for OpenWeatherMap.
 
 #### Sample WB-weather config Using OpenWeatherMap
 
@@ -85,7 +127,7 @@ modules: [
 The current default template for WB-weather. Displays the current weather and upcoming forecast.
 
 * **Template Name:** `"classic-wallberry"`
-* **Providers Supported:** OpenWeatherMap
+* **Providers Supported:** Open-Meteo, OpenWeatherMap
 
 Sample Screenshot:
 
@@ -112,12 +154,14 @@ All weather providers are located in the `WB-weather/providers/` directory and s
 ### Examples
 
 * [WB-openweathermap.js](providers/WB-openweathermap.js) subclasses `WBProvider` and implements the OpenWeatherMap API.
+* [WB-openmeteo.js](providers/WB-openmeteo.js) subclasses `WBProvider` and implements the Open-Meteo API, which needs no API key.
 
 ### Provider Naming Conventions
 
 - Choose a short name for your provider, such as `myprovider`, that users will use in the `providerName` option in their module config file.
 - **Make sure your providerName is LOWER CASE.**
 - Name your provider's javascript file `WB-{myprovider}.js`, with `{myprovider}` being your `providerName`.
+- Add your `providerName` to `providerNames` in [WB-weather.js](WB-weather.js); the error for a config without `providerName` lists these names as the possible values.
 
 ### Implementing WBProvider
 
@@ -231,6 +275,7 @@ The data classes in `Wb-DataObjects.js`, specifically `WBWeather` and `WBForecas
 
 * Your provider should attempt to fill in as much data as it can for the documented properties of these objects. **The more data you fill in, the more likely it is for your provider to work with multiple display templates.**
 * Your provider can add custom properties to these objects, but remember that it's up to the templates to support them.
+* If your weather API returns no text, such as a description of the weather, call `this.delegate.translate(key)` for a key in the files in `WB-weather/translations/`. Add a new key to every file there; MagicMirror shows the English text for a language without a file.
 
 -------------------------------
 
