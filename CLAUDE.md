@@ -108,6 +108,10 @@ lower-cased in `start()` and used to build file paths.
 - Issue numbers in this fork collide with upstream's. Write `#12` only for
   this fork's issues and `delightedCrow/WallberryTheme#12` for upstream's.
   Older `CHANGELOG.md` entries link upstream issues.
+- Put images in `images/` (or `WB-weather/images/`), never in a path
+  containing "screenshot", "example", "sample" or "preview": the
+  MagicMirror² module list previews the first such image in sorted path
+  order, which must stay `screenshots/wb-screen1.jpg`.
 
 ## Plugin Bindings
 

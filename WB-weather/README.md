@@ -131,7 +131,7 @@ The current default template for WB-weather. Displays the current weather and up
 
 Sample Screenshot:
 
-<img src="screenshots/wb-weather-wallberry-classic.jpg">
+<img src="images/wb-weather-wallberry-classic.jpg">
 
 -------------------------------
 
@@ -142,7 +142,7 @@ Sample Screenshot:
 **BEFORE** you submit your pull request:
 
 - Please read [The Contributing Section of the WallberryTheme README](../README.md#Contributing).
-- **If you add a Template**: include a section for your template under the  `Available Display Templates` header in this README with the appropriate documentation (see the classic-wallberry template above for an example). **Make sure you include a sample screenshot of your template.**
+- **If you add a Template**: include a section for your template under the  `Available Display Templates` header in this README with the appropriate documentation (see the classic-wallberry template above for an example). **Make sure you include a sample screenshot of your template**, saved in `WB-weather/images/`.
 - **If you add a Weather Provider**: include a section for your provider under the `Available Weather Providers` header in this README with appropriate documentation (see the openweathermap provider for above for an example).
 
 -------------------------------
