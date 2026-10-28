@@ -42,58 +42,36 @@ const CORE_KEYS = [
 	"UPDATE_NOTIFICATION_NEED-RESTART", "ALERT_TITLE", "ALERT_WELCOME"
 ];
 
-/**
- * Stands in for the browser's XMLHttpRequest: records the listeners and
- * the request, and lets a test answer it.
- */
-class FakeXMLHttpRequest {
-	constructor() {
-		this.listeners = {};
-		this.headers = {};
-		FakeXMLHttpRequest.last = this;
-	}
-	addEventListener(type, listener) {
-		this.listeners[type] = listener;
-	}
-	open(method, url) {
-		this.url = url;
-	}
-	setRequestHeader() {}
-	send() {}
-	getResponseHeader(name) {
-		return this.headers[name] ?? null;
-	}
-	respond(status, statusText, responseText, headers = {}) {
-		Object.assign(this, {status, statusText, responseText, headers});
-		this.listeners.load.call(this);
-	}
-	fire(type) {
-		this.listeners[type].call(this);
-	}
-}
-
 const PHOTO = {urls: {raw: "https://images.unsplash.com/photo"}, color: "#336699", user: {name: "Jane"}};
 
 /**
  * Creates the WallberryTheme module the way MagicMirror² does, with the
- * DOM update stubbed out and timers recorded instead of run.
+ * DOM update stubbed out and timers recorded instead of run. `answer`
+ * stands in for the network: it returns the Response for a request, or
+ * throws the error fetch rejects with.
  */
-function createModule() {
+function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
 	const timers = [];
+	const requests = [];
 	const scripts = loadScripts(["WallberryTheme.js"], {
-		XMLHttpRequest: FakeXMLHttpRequest,
-		setTimeout: (callback, delay) => {
+		fetch: async (url, options) => {
+			requests.push({url, options});
+			return answer();
+		},
+		// Records the timeout instead of starting one
+		AbortSignal: {timeout: (milliseconds) => ({timeout: milliseconds})},
+		setTimeout: (_callback, delay) => {
 			timers.push(delay);
 			return timers.length;
 		}
 	});
-	const definition = scripts.modules["WallberryTheme"];
+	const definition = scripts.modules.WallberryTheme;
 	const mod = Object.create(definition);
 	mod.config = {...definition.defaults, unsplashAccessKey: "key"};
 	mod.updateDom = () => {};
 	mod.photos = [];
 	mod.processPhoto = (photo) => mod.photos.push(photo);
-	return {mod, timers, log: scripts.log};
+	return {mod, timers, requests, log: scripts.log};
 }
 
 describe("WallberryTheme parseUnsplashResponse", () => {
@@ -133,32 +111,46 @@ describe("WallberryTheme parseUnsplashResponse", () => {
 });
 
 describe("WallberryTheme fetchPhoto", () => {
-	it("shows the photo of a successful response", () => {
-		const {mod, timers} = createModule();
-		mod.fetchPhoto();
-		FakeXMLHttpRequest.last.respond(200, "OK", JSON.stringify(PHOTO));
+	it("shows the photo of a successful response", async () => {
+		const {mod, timers, requests} = createModule();
+		await mod.fetchPhoto();
 		assert.equal(JSON.stringify(mod.photos), JSON.stringify([PHOTO]));
 		assert.equal(mod.photoError, null);
 		assert.deepEqual(timers, []);
+		assert.equal(requests[0].options.headers["Accept-Version"], "v1");
 	});
 
 	for (const [status, body] of [[403, "Rate Limit Exceeded"], [502, "<html>Bad Gateway</html>"], [200, "not json"]]) {
-		it(`shows an error and schedules the next fetch after a ${status} response that is not JSON`, () => {
-			const {mod, timers} = createModule();
-			mod.fetchPhoto();
-			assert.doesNotThrow(() => FakeXMLHttpRequest.last.respond(status, "", body));
+		it(`shows an error and schedules the next fetch after a ${status} response that is not JSON`, async () => {
+			const {mod, timers} = createModule(() => new Response(body, {status}));
+			await mod.fetchPhoto();
 			assert.ok(mod.photoError);
 			assert.deepEqual(timers, [mod.config.updateInterval]);
 		});
 	}
 
-	it("gives up on a request after a timeout and schedules the next fetch", () => {
-		const {mod, timers} = createModule();
-		mod.fetchPhoto();
-		const req = FakeXMLHttpRequest.last;
-		assert.equal(req.timeout, mod.requestTimeout);
-		req.fire("timeout");
+	it("names the rate limit from the response header", async () => {
+		const {mod} = createModule(() => new Response("", {status: 403, headers: {"X-Ratelimit-Remaining": "0"}}));
+		await mod.fetchPhoto();
+		assert.equal(mod.photoError.key, "ERROR_RATE_LIMIT");
+	});
+
+	it("gives up on a request after a timeout and schedules the next fetch", async () => {
+		const {mod, timers, requests} = createModule(() => {
+			throw new DOMException("The operation timed out.", "TimeoutError");
+		});
+		await mod.fetchPhoto();
+		assert.equal(requests[0].options.signal.timeout, mod.requestTimeout);
 		assert.equal(translateError(EN, mod.photoError), "The Unsplash server did not answer within 30 seconds.");
+		assert.deepEqual(timers, [mod.config.updateInterval]);
+	});
+
+	it("shows a connection error when Unsplash does not answer and schedules the next fetch", async () => {
+		const {mod, timers} = createModule(() => {
+			throw new TypeError("Failed to fetch");
+		});
+		await mod.fetchPhoto();
+		assert.equal(mod.photoError.key, "ERROR_CONNECTION");
 		assert.deepEqual(timers, [mod.config.updateInterval]);
 	});
 });
@@ -238,7 +230,7 @@ function createModuleWithDocument() {
 		setTimeout: () => 1,
 		clearTimeout: () => {}
 	});
-	const definition = scripts.modules["WallberryTheme"];
+	const definition = scripts.modules.WallberryTheme;
 	const mod = Object.create(definition);
 	mod.config = {...definition.defaults, unsplashAccessKey: "key", autoDimOn: false};
 	mod.updateDom = () => {};
@@ -292,13 +284,13 @@ describe("WallberryTheme auto-dim", () => {
 			window: {innerWidth: 1080, innerHeight: 1920},
 			setTimeout: () => 1,
 			WBColor: {
-				needsDimming: (img, bars) => {
+				needsDimming: (_img, bars) => {
 					calls.push(bars);
 					return dim;
 				}
 			}
 		});
-		const definition = scripts.modules["WallberryTheme"];
+		const definition = scripts.modules.WallberryTheme;
 		const mod = Object.create(definition);
 		mod.config = {...definition.defaults, unsplashAccessKey: "key", ...config};
 		mod.updateDom = () => {};

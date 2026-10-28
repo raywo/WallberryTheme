@@ -56,8 +56,8 @@ to register their own filters (`translate`, `dayLabel`, `precipIcons`).
 
 ### WallberryTheme (root)
 
-- Fetches a random Unsplash photo via XHR in the browser, renders it as a
-  `fullscreen_below` background.
+- Fetches a random Unsplash photo with `fetch` in the browser, renders it
+  as a `fullscreen_below` background.
 - `node_helper.js` clears Electron's cache on start (`CLEAR_CACHE` →
   `ELECTRON_CACHE_CLEARED`); the module only fetches a photo after that
   reply, so the helper must always answer, also without Electron.

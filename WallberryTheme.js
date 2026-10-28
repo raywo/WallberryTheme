@@ -93,44 +93,43 @@ Module.register("WallberryTheme", {
 			"&orientation=" + this.config.orientation;
 
 		if (this.config.queries.length > 0) {
-			let query = this.config.queries[Math.floor(Math.random() * this.config.queries.length)];
+			const query = this.config.queries[Math.floor(Math.random() * this.config.queries.length)];
 
 			url = url +
 				"&query=" + encodeURIComponent(query);
 		}
 
 		this.photoError = null;
-		var req = new XMLHttpRequest();
-		var mod = this;
 
-		req.addEventListener("load", function() {
-			const result = mod.parseUnsplashResponse(
-				this.status,
-				this.statusText,
-				this.responseText,
-				this.getResponseHeader("X-Ratelimit-Remaining")
+		// The rejection handler covers only the request and reading its
+		// body, so an error while showing the photo is not reported as a
+		// connection error. Returns the promise for the tests.
+		return fetch(url, {
+			headers: {"Accept-Version": "v1"},
+			signal: AbortSignal.timeout(this.requestTimeout)
+		}).then((response) => {
+			return response.text().then((responseText) => ({response, responseText}));
+		}).then(({response, responseText}) => {
+			const result = this.parseUnsplashResponse(
+				response.status,
+				response.statusText,
+				responseText,
+				response.headers.get("X-Ratelimit-Remaining")
 			);
 			if (result.photo) {
-				mod.processPhoto(result.photo);
+				this.processPhoto(result.photo);
 			} else {
-				Log.error("Unsplash Error: ", this.status, this.responseText);
-				mod.processError(result.error);
+				Log.error("Unsplash Error: ", response.status, responseText);
+				this.processError(result.error);
+			}
+		}, (error) => {
+			if (error.name === "TimeoutError") {
+				this.processError({key: "ERROR_TIMEOUT", variables: {seconds: this.requestTimeout / 1000}});
+			} else {
+				// most likely an internet connection issue
+				this.processError({key: "ERROR_CONNECTION"});
 			}
 		});
-
-		req.addEventListener("error", function() {
-			// most likely an internet connection issue
-			mod.processError({key: "ERROR_CONNECTION"});
-		});
-
-		req.addEventListener("timeout", function() {
-			mod.processError({key: "ERROR_TIMEOUT", variables: {seconds: mod.requestTimeout / 1000}});
-		});
-
-		req.open("GET", url);
-		req.timeout = this.requestTimeout;
-		req.setRequestHeader("Accept-Version", "v1");
-		req.send();
 	},
 
 	// Turns an Unsplash response into either {photo} or {error}. Never
