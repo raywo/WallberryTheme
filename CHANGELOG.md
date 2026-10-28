@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## 4.0.0 - 2026-10-28
+The first release of this fork. It breaks WB-weather configs that leave out `providerName` or use Dark Sky: the entries marked **Breaking** say what to change, and [WB-weather's README](WB-weather/README.md#upgrading-from-an-earlier-version) explains each case.
+
 ### Added
 - Added a `package.json`, which the [MagicMirror² module list](https://modules.magicmirror.builders/) expects and from whose keywords it shows the module's tags ([#6](https://github.com/raywo/WallberryTheme/issues/6)).
 - Added a German translation of WallberryTheme's texts (the photo attribution, the loading message and the error messages), shown with `language: "de"` ([#4](https://github.com/raywo/WallberryTheme/issues/4)).
