@@ -14,13 +14,19 @@ longer maintained; this fork carries the development on.
 
 ## Build, lint, test
 
-There is no bundler and no linter config. Files are loaded as-is by
-MagicMirror. `package.json` only carries the metadata the MagicMirror²
-module list reads (license, keywords); keep it free of dependencies and
-keep its `version` in step with `CHANGELOG.md`. The workflow in
+There is no bundler. Files are loaded as-is by MagicMirror.
+`package.json` only carries the metadata the MagicMirror² module list
+reads (license, keywords); keep it free of dependencies and keep its
+`version` in step with `CHANGELOG.md`. The workflow in
 `.github/workflows/` runs lint and tests on every pull request.
 
-- Lint (syntax only): `git ls-files '*.js' | xargs -n1 node --check`
+- Syntax check: `git ls-files '*.js' | xargs -n1 node --check`
+- Lint: `pnpm dlx @biomejs/biome@2.6.3 ci .` – Biome runs as a standalone
+  binary, so it needs no dependency in `package.json`. Keep its version
+  the same in the `$schema` of `biome.json`, in the workflow and here.
+- A new global that the scripts share goes into `javascript.globals` in
+  `biome.json`; its declaration gets a `biome-ignore` comment for
+  `noUnusedVariables` with the reason, like the existing ones.
 - Tests: `node --test "tests/**/*.test.js"` (Node's built-in runner, no
   dependencies). Single file: `node --test tests/<name>.test.js`.
 - Module scripts are browser scripts that define globals; load them in a
@@ -34,7 +40,7 @@ keep its `version` in step with `CHANGELOG.md`. The workflow in
   MagicMirror installation with the module configured in
   `config/config.js`; say in the report that it was not verified there if
   you could not.
-- Do not add an external test runner (Vitest, Jest): it needs
+- Do not add an external test runner (Vitest, Jest) or ESLint: they need
   dependencies, a lockfile and dependency updates.
 
 Runtime dependencies come from the MagicMirror host, not from this repo:

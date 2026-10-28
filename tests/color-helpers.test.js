@@ -145,10 +145,10 @@ describe("WBColor needsDimming", () => {
 			createElement: () => {
 				const canvas = {
 					getContext: () => ({
-						drawImage: (img, x, y, width, height) => {
+						drawImage: (_img, _x, _y, width, height) => {
 							canvas.drawn = {width, height};
 						},
-						getImageData: (x, y, width, height) => {
+						getImageData: (_x, _y, width, height) => {
 							reads.push({width, height});
 							return {data: pixels(colorAt, width, height)};
 						}

@@ -7,13 +7,13 @@ const NodeHelper = require("node_helper");
 let BrowserWindow = null;
 try {
 	({BrowserWindow} = require("electron"));
-} catch (e) {
+} catch {
 	console.log("WallberryTheme: Electron is not available, its cache will not be cleared.");
 }
 
 module.exports = NodeHelper.create({
 
-	socketNotificationReceived: function(notification, payload) {
+	socketNotificationReceived: function(notification) {
 		switch(notification) {
 		case "CLEAR_CACHE":
 			if (!BrowserWindow) {
@@ -32,7 +32,7 @@ module.exports = NodeHelper.create({
 
 			} catch (e) {
 				// We'll get a TypeError if MM is being run in server only mode because Electron won't be running the app - if that's the case we can just say the cache has been cleared and call it a day
-				if (e.name == "TypeError") {
+				if (e.name === "TypeError") {
 					this.sendSocketNotification("ELECTRON_CACHE_CLEARED", {});
 				} else {
 					console.log("WallberryTheme ERROR: ", e);

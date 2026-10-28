@@ -1,4 +1,4 @@
-/* Magic Mirror - WallberryTheme <3
+/* MagicMirror² - WallberryTheme <3
  * Module: WB-weather
  *
  * By JSC (@delightedCrow)
@@ -11,6 +11,7 @@
 * @param {Object} config - The config object passed to the WB-weather module
 * @param {Object} delegate - The delegate that should be informed when the provider has a weather update. delegate must implement the function updateAvailable(); its translate(key) returns the text of a key in WB-weather's translations/
 */
+// biome-ignore lint/correctness/noUnusedVariables: a global for the other scripts MagicMirror² loads
 class WBProvider {
 	constructor(config, delegate) {
 		this.config = config;
@@ -93,7 +94,7 @@ class WBProvider {
 	* @param {String} errorMessage the error message
 	*/
 	resolveWithTemporaryError(errorMessage, retryDelay) {
-		let delay = retryDelay ? retryDelay : this.errorRetryDelay;
+		const delay = retryDelay ? retryDelay : this.errorRetryDelay;
 		Log.warn(`WB-weather: error fetching weather with ${this.name}: ${errorMessage}. Retrying in ${delay/1000} seconds.`);
 		this.error = new WBError(true, errorMessage, delay);
 		this.delegate.updateAvailable();
@@ -111,7 +112,7 @@ class WBProvider {
 	* @returns {string} the full url with querystring.
 	*/
 	getQueryStringURL(baseURL, queryParams) {
-		let params = Object.entries(queryParams);
+		const params = Object.entries(queryParams);
 		if (params.length < 1) {
 			return baseURL;
 		}
@@ -184,6 +185,7 @@ class WBProvider {
 /**
 * A utility class for WB-weather.js to manage its weather providers
 */
+// biome-ignore lint/correctness/noUnusedVariables: a global for the other scripts MagicMirror² loads
 var WBProviderManager = {
 	providers: {},
 	register: function(providerName, providerClass) {
@@ -198,7 +200,7 @@ var WBProviderManager = {
 	},
 
 	hasProvider: function(providerName) {
-		if (this.providers.hasOwnProperty(providerName)) {
+		if (Object.hasOwn(this.providers, providerName)) {
 			return true;
 		}
 		return false

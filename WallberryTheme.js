@@ -1,4 +1,4 @@
-/* Magic Mirror - WallberryTheme <3
+/* MagicMirror² - WallberryTheme <3
  * Module: WallberryTheme
  *
  * By JSC (@delightedCrow)
@@ -54,7 +54,7 @@ Module.register("WallberryTheme", {
 	},
 
 	start: function() {
-		Log.info("Starting module: " + this.name);
+		Log.info(`Starting module: ${this.name}`);
 		if (this.config.clearCacheOnStart) {
 			this.sendSocketNotification("CLEAR_CACHE");
 		} else {
@@ -77,7 +77,7 @@ Module.register("WallberryTheme", {
 		};
 	},
 
-	socketNotificationReceived: function(notification, payload) {
+	socketNotificationReceived: function(notification) {
 		switch(notification) {
 		case "ELECTRON_CACHE_CLEARED":
 			this.fetchPhoto();
@@ -141,7 +141,7 @@ Module.register("WallberryTheme", {
 		let data = null;
 		try {
 			data = JSON.parse(responseText);
-		} catch (e) {
+		} catch {
 			data = null;
 		}
 		const isObject = data !== null && typeof data === "object";
@@ -171,8 +171,8 @@ Module.register("WallberryTheme", {
 
 	processPhoto: function(photoData) {
 		var p = {};
-		let width = this.config.imageWidth == "auto" ? window.innerWidth : this.config.imageWidth;
-		let height = this.config.imageHeight == "auto" ? window.innerHeight : this.config.imageHeight;
+		const width = this.config.imageWidth === "auto" ? window.innerWidth : this.config.imageWidth;
+		const height = this.config.imageHeight === "auto" ? window.innerHeight : this.config.imageHeight;
 
 		p.url = photoData.urls.raw +
 			"&w=" + width +
@@ -211,7 +211,7 @@ Module.register("WallberryTheme", {
 	getBarAreas: function(imageHeight) {
 		const screenHeight = window.innerHeight;
 		return ["top", "bottom"].map((position) => {
-			const regionClassName = "region " + position + " bar";
+			const regionClassName = `region ${position} bar`;
 			const region = document.getElementsByClassName(regionClassName)[0].getBoundingClientRect();
 			const fadeHeight = Math.max(this.fadeMinHeight, this.getFadeHeight(regionClassName));
 			const fadeStart = position === "top" ? 0 : screenHeight - fadeHeight;
@@ -262,7 +262,7 @@ Module.register("WallberryTheme", {
 	*/
 	getFadeHeight: function(regionClassName) {
 		// we auto-adjust the height of the background fades to be at least the height of the top bar region and bottom bar regions, in case they're bigger than the 250px min height we set in the css
-		let region = document.getElementsByClassName(regionClassName)[0];
+		const region = document.getElementsByClassName(regionClassName)[0];
 		return region.clientHeight + 70; // +70 for margin+padding
 	},
 
@@ -271,8 +271,8 @@ Module.register("WallberryTheme", {
 		// setting the html/body background colors to the dark shade gives a much richer color to the image when it becomes transparent.
 		// We set the image to be transparent when we want to dim it (because the black background then comes through), but having a pure black background can cause the image to look greyish and washed out.
 		// The fades read --wb-swatch too, through the tints in css/WallberryTheme.css.
-		let html = document.documentElement;
-		let body = document.body;
+		const html = document.documentElement;
+		const body = document.body;
 		let background = "black";
 		if (swatch) {
 			html.style.setProperty("--wb-swatch", swatch);
