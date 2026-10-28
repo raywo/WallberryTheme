@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added a `package.json`, which the [MagicMirror² module list](https://modules.magicmirror.builders/) expects and from whose keywords it shows the module's tags ([#6](https://github.com/raywo/WallberryTheme/issues/6)).
 - Added a German translation of WallberryTheme's texts (the photo attribution, the loading message and the error messages), shown with `language: "de"` ([#4](https://github.com/raywo/WallberryTheme/issues/4)).
 - Added WB-weather's Open-Meteo provider, which needs no API key: set `providerName: "openmeteo"` with `latitude` and `longitude`. The `classic-wallberry` template now keeps the forecast in one row next to the current weather, which fits up to 5 days on a 1080 px wide portrait screen ([#7](https://github.com/raywo/WallberryTheme/issues/7)).
 - Added weather icons to WB-weather's Open-Meteo provider: the current weather shows a day or night icon, depending on whether the sun is up, and forecast days a day icon; a forecast day with a snow weather code now shows the snowflake also when Open-Meteo forecasts no snowfall ([#8](https://github.com/raywo/WallberryTheme/issues/8)).

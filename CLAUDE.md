@@ -14,9 +14,11 @@ longer maintained; this fork carries the development on.
 
 ## Build, lint, test
 
-There is no `package.json`, no bundler and no linter config. Files are
-loaded as-is by MagicMirror. The workflow in `.github/workflows/` runs lint
-and tests on every pull request.
+There is no bundler and no linter config. Files are loaded as-is by
+MagicMirror. `package.json` only carries the metadata the MagicMirror²
+module list reads (license, keywords); keep it free of dependencies and
+keep its `version` in step with `CHANGELOG.md`. The workflow in
+`.github/workflows/` runs lint and tests on every pull request.
 
 - Lint (syntax only): `git ls-files '*.js' | xargs -n1 node --check`
 - Tests: `node --test "tests/**/*.test.js"` (Node's built-in runner, no
@@ -32,8 +34,8 @@ and tests on every pull request.
   MagicMirror installation with the module configured in
   `config/config.js`; say in the report that it was not verified there if
   you could not.
-- Do not add an external test runner (Vitest, Jest): it needs a
-  `package.json`, a lockfile and dependency updates.
+- Do not add an external test runner (Vitest, Jest): it needs
+  dependencies, a lockfile and dependency updates.
 
 Runtime dependencies come from the MagicMirror host, not from this repo:
 `Module`, `Log`, `config`, `nunjucks`, `moment.js`, `moment-timezone.js`,
