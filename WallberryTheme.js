@@ -13,6 +13,7 @@ Module.register("WallberryTheme", {
 		queries: [], // list of search queries to search for
 
 		updateInterval: 300 * 1000, // 5 min
+		newPhotoOnResume: false, // true: fetch a new photo when the module is shown again after being hidden
 		orientation: "portrait", // desired photo orientation - can be portrait, landscape, or squarish
 		resizeForScreen: true, // resize image for screen - otherwise image is displayed at full height/width
 		backgroundOpacity: 1, // between 0 (black background) and 1 (visible opaque background)
@@ -29,6 +30,7 @@ Module.register("WallberryTheme", {
 	photoElement: null,
 	photoError: null,
 	fetchTimer: null,
+	nextFetchTime: null, // ms timestamp the scheduled fetch is due at, null while a fetch runs
 	img: null,
 	requestTimeout: 30 * 1000, // abort an Unsplash request that has not answered after 30 s
 	fadeMinHeight: 250, // px, the min-height of .wbfade in css/WallberryTheme.css
@@ -100,6 +102,7 @@ Module.register("WallberryTheme", {
 		}
 
 		this.photoError = null;
+		this.nextFetchTime = null;
 
 		// The rejection handler covers only the request and reading its
 		// body, so an error while showing the photo is not reported as a
@@ -164,9 +167,17 @@ Module.register("WallberryTheme", {
 	processError: function(error) {
 		this.photoError = error;
 		this.updateDom();
+		this.scheduleFetch(this.config.updateInterval);
+	},
+
+	// The only place that starts the fetch timer, so that resume() knows
+	// when the next fetch is due.
+	scheduleFetch: function(delay) {
+		clearTimeout(this.fetchTimer);
+		this.nextFetchTime = Date.now() + delay;
 		this.fetchTimer = setTimeout(() => {
 			this.fetchPhoto();
-		}, this.config.updateInterval);
+		}, delay);
 	},
 
 	processPhoto: function(photoData) {
@@ -194,9 +205,7 @@ Module.register("WallberryTheme", {
 				this.photoData.needsDimming = WBColor.needsDimming(this.img, this.getBarAreas(this.img.naturalHeight || this.img.height));
 			}
 			this.updateDom(2000);
-			this.fetchTimer = setTimeout(() => {
-				this.fetchPhoto();
-			}, this.config.updateInterval);
+			this.scheduleFetch(this.config.updateInterval);
 		};
 
 		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
@@ -234,7 +243,25 @@ Module.register("WallberryTheme", {
 	resume: function() {
 		Log.info("Waking WallberryTheme...");
 		clearTimeout(this.fetchTimer);
-		this.fetchPhoto();
+		if (this.config.newPhotoOnResume) {
+			this.fetchPhoto();
+			return;
+		}
+
+		// Keep the photo: restore the tint suspend() reset, and fetch when
+		// the photo is due, counting the time the module was hidden.
+		if (this.photoData) {
+			this.setBackgroundTint(this.photoData.color);
+		}
+		// Without a due time a fetch is running, and it schedules the next.
+		if (this.nextFetchTime !== null) {
+			const remaining = this.nextFetchTime - Date.now();
+			if (remaining > 0) {
+				this.scheduleFetch(remaining);
+			} else {
+				this.fetchPhoto();
+			}
+		}
 	},
 
 	nunjucksEnvironment: function() {

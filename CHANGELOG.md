@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added WallberryTheme's `newPhotoOnResume` option: set it to `true` to fetch a new photo each time the module is shown again after being hidden ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
+
+### Changed
+- WallberryTheme now keeps its photo when it is shown again after being hidden, e.g. by MMM-pages, instead of fetching a new one each time, which saves Unsplash requests; the photo changes once `updateInterval` has passed since the last change, counting the time it was hidden. Set `newPhotoOnResume: true` to get a new photo on every switch as before ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
+
 ## 4.0.0 - 2026-10-31
 The first release of this fork. It breaks WB-weather configs that leave out `providerName` or use Dark Sky: the entries marked **Breaking** say what to change, and [WB-weather's README](WB-weather/README.md#upgrading-from-an-earlier-version) explains each case.
 

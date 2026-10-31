@@ -46,13 +46,15 @@ const PHOTO = {urls: {raw: "https://images.unsplash.com/photo"}, color: "#336699
 
 /**
  * Creates the WallberryTheme module the way MagicMirror² does, with the
- * DOM update stubbed out and timers recorded instead of run. `answer`
- * stands in for the network: it returns the Response for a request, or
- * throws the error fetch rejects with.
+ * DOM update stubbed out, timers recorded instead of run and a clock
+ * that only moves when `clock.now` is set. `answer` stands in for the
+ * network: it returns the Response for a request, or throws the error
+ * fetch rejects with.
  */
 function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
 	const timers = [];
 	const requests = [];
+	const clock = {now: 0};
 	const scripts = loadScripts(["WallberryTheme.js"], {
 		fetch: async (url, options) => {
 			requests.push({url, options});
@@ -63,7 +65,9 @@ function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
 		setTimeout: (_callback, delay) => {
 			timers.push(delay);
 			return timers.length;
-		}
+		},
+		clearTimeout: () => {},
+		Date: {now: () => clock.now}
 	});
 	const definition = scripts.modules.WallberryTheme;
 	const mod = Object.create(definition);
@@ -71,7 +75,7 @@ function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
 	mod.updateDom = () => {};
 	mod.photos = [];
 	mod.processPhoto = (photo) => mod.photos.push(photo);
-	return {mod, timers, requests, log: scripts.log};
+	return {mod, timers, requests, clock, log: scripts.log};
 }
 
 describe("WallberryTheme parseUnsplashResponse", () => {
@@ -152,6 +156,82 @@ describe("WallberryTheme fetchPhoto", () => {
 		await mod.fetchPhoto();
 		assert.equal(mod.photoError.key, "ERROR_CONNECTION");
 		assert.deepEqual(timers, [mod.config.updateInterval]);
+	});
+});
+
+describe("WallberryTheme resume", () => {
+	const INTERVAL = 300 * 1000;
+
+	/**
+	 * Creates the module with the given config, a photo shown at time 0
+	 * whose next fetch is due one updateInterval later, and the tints it
+	 * sets recorded. `answer` stands in for the network as in
+	 * createModule().
+	 */
+	function createShowingModule(config = {}, answer = undefined) {
+		const created = createModule(answer);
+		const {mod} = created;
+		mod.config = {...mod.config, updateInterval: INTERVAL, ...config};
+		mod.tints = [];
+		mod.setBackgroundTint = (swatch) => mod.tints.push(swatch);
+		mod.photoData = {color: "#336699"};
+		mod.scheduleFetch(INTERVAL);
+		created.timers.length = 0;
+		return created;
+	}
+
+	it("fetches a new photo on resume with newPhotoOnResume: true", () => {
+		const {mod, requests} = createShowingModule({newPhotoOnResume: true});
+		mod.resume();
+		assert.equal(requests.length, 1);
+	});
+
+	it("keeps the photo and its tint by default", () => {
+		const {mod, requests, clock, timers} = createShowingModule();
+		clock.now = 100 * 1000;
+		mod.resume();
+		assert.equal(requests.length, 0);
+		assert.deepEqual(mod.tints, ["#336699"]);
+		assert.deepEqual(timers, [INTERVAL - 100 * 1000]);
+	});
+
+	it("fetches right away when the photo is due by the time the module resumes", () => {
+		for (const hidden of [INTERVAL, 2 * INTERVAL]) {
+			const {mod, requests, clock, timers} = createShowingModule({newPhotoOnResume: false});
+			clock.now = hidden;
+			mod.resume();
+			assert.equal(requests.length, 1, `${hidden}`);
+			assert.deepEqual(timers, [], `${hidden}`);
+		}
+	});
+
+	it("leaves the next fetch to a fetch that is still running", () => {
+		const {mod, requests, timers} = createShowingModule({newPhotoOnResume: false}, () => new Promise(() => {}));
+		mod.fetchPhoto();
+		mod.resume();
+		assert.equal(requests.length, 1);
+		assert.deepEqual(timers, []);
+	});
+
+	it("takes the due time from when the photo loaded", () => {
+		const {mod} = createModuleWithDocument();
+		const before = Date.now();
+		mod.processPhoto(PHOTO);
+		mod.img.onload();
+		assert.ok(mod.nextFetchTime >= before + mod.config.updateInterval);
+		assert.ok(mod.nextFetchTime <= Date.now() + mod.config.updateInterval);
+	});
+
+	it("retries after an error at the scheduled time and sets no tint without a photo", () => {
+		const {mod, timers, clock, requests} = createShowingModule({newPhotoOnResume: false});
+		mod.photoData = null;
+		mod.processError({key: "ERROR_CONNECTION"});
+		timers.length = 0;
+		clock.now = 60 * 1000;
+		mod.resume();
+		assert.deepEqual(mod.tints, []);
+		assert.equal(requests.length, 0);
+		assert.deepEqual(timers, [INTERVAL - 60 * 1000]);
 	});
 });
 
@@ -283,6 +363,7 @@ describe("WallberryTheme auto-dim", () => {
 			},
 			window: {innerWidth: 1080, innerHeight: 1920},
 			setTimeout: () => 1,
+			clearTimeout: () => {},
 			WBColor: {
 				needsDimming: (_img, bars) => {
 					calls.push(bars);
