@@ -171,7 +171,7 @@ The following properties of `WallberryTheme` can be configured. For more informa
 | `unsplashAccessKey`         | String  | Your Unsplash API access key. Sign up for free at [https://unsplash.com/developers](https://unsplash.com/developers). Demo accounts are allowed `50 API requests per hour`. <br><br>  This value is **REQUIRED**
 | `collections`               | String  | A comma-separated list of Unsplash collection IDs that photos should be pulled from. Collection IDs can be found in the URL of the collection, shown in the highlighted part of this screenshot: <img src="images/unsplash-collection-id.png">  <br><br> **Example:** `"1538150,162213"` <br> **Default value:** `""` (no collection, theme will use a random Unsplash photo)
 | `queries`                   | Array   | A list of queries to search for on Unsplash. When multiple queries are specified, one gets randomly picked every refresh. <br><br> **Example:** `["cars", "new york", "black cat"]` <br> **Default value:** `[]`
-| `updateInterval`            | Number  | How often the photo should change (Milliseconds). Each change costs an Unsplash request: below `72000` (72 seconds) a demo key runs out of requests within the hour, see [Unsplash's rate limit](#unsplashs-rate-limit). <br><br> **Default value:** `300000` (5 minutes)
+| `updateInterval`            | Number  | How often the photo should change (Milliseconds). Each change costs an Unsplash request: below `72000` (72 seconds) a demo key runs out of requests within the hour, see [Unsplash's rate limit](#unsplashs-rate-limit). The interval runs on across restarts: after a restart or reload, WallberryTheme shows the photo it showed before and costs a request only once that photo's change is due. <br><br> **Default value:** `300000` (5 minutes)
 | `newPhotoOnResume`          | Boolean | Whether WallberryTheme shows a new photo when it is shown again after being hidden, e.g. by a page module such as MMM-pages or by a presence sensor. With `false` it keeps the photo it showed before, which saves Unsplash requests on mirrors that hide and show modules often; the photo then changes once `updateInterval` has passed since the last change, counting the time it was hidden. With `true` every switch fetches a new photo and costs a request, see [Unsplash's rate limit](#unsplashs-rate-limit). <br><br> **Possible values:** `true` (new photo) or `false` (keep the photo) <br>**Default value:** `false`
 | `orientation`               | String  | What screen orientation photos should be optimized for. <br><br> **Possible values:** `"portrait"`, `"landscape"`, or `"squarish"` <br> **Default value:** `"portrait"`
 | `backgroundOpacity`         | Number  | Controls the darkness of the background photo. <br><br> **Possible values:** Any number from `0.0` (black screen) to `1` (fully bright image)<br> **E.G.**: `0.5` would be the background at half brightness<br> **Default value:** `1`
@@ -187,14 +187,16 @@ The following properties of `WallberryTheme` can be configured. For more informa
 
 A demo access key allows 50 requests per hour; once Unsplash approves your application for production, the key allows 1,000. Every new photo costs one request, wherever the change comes from:
 
-- the start of MagicMirror,
+- the start or a reload of MagicMirror, but only when the photo shown before is due for a change, see below,
 - every `updateInterval`,
 - every time the module is shown again, with `newPhotoOnResume: true`,
 - every [`WALLBERRY_FETCH_PHOTO`](#changing-the-photo-from-another-module) notification, e.g. on each page change.
 
 The changes add up within the hour. A photo every 5 minutes uses 12 requests per hour; a mirror that also asks for a new photo on each page change and switches pages every minute needs 60 more and runs out of a demo key's requests within the hour.
 
-Once the limit is exceeded, the photo on screen stays and stops changing until the hour is over; WallberryTheme tries again after each `updateInterval`. Only without a photo, e.g. right after the start, it shows the message that the rate limit is exceeded. Mirrors that share an access key share its limit.
+WallberryTheme remembers the photo on screen and when its next change is due, in the storage of the browser that shows the mirror. After a restart or a reload it shows that photo right away, without a request, and changes it once `updateInterval` has passed since the last change, counting the time MagicMirror was not running; a photo already due is replaced right away. Restarting MagicMirror while you set it up or test your config therefore costs no requests. A change of `queries`, `collections`, `orientation`, `imageWidth`, `imageHeight` or `imageOptions` makes WallberryTheme fetch a new photo at the next start. In server-only mode, each browser that shows the mirror remembers its own photo.
+
+Once the limit is exceeded, the photo on screen stays and stops changing until the hour is over; WallberryTheme tries again after each `updateInterval`. Only without a photo, e.g. at the first start or after a change of one of the options above, it shows the message that the rate limit is exceeded. Mirrors that share an access key share its limit.
 
 ### Changing the photo from another module
 

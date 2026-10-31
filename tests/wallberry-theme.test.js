@@ -50,8 +50,9 @@ const PHOTO = {urls: {raw: "https://images.unsplash.com/photo"}, color: "#336699
  * that only moves when `clock.now` is set. `answer` stands in for the
  * network: it returns the Response for a request, or throws the error
  * fetch rejects with. `pending` holds the ids of the timers not cleared.
+ * `globals` adds or replaces globals, e.g. a `localStorage`.
  */
-function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
+function createModule(answer = () => new Response(JSON.stringify(PHOTO)), globals = {}) {
 	const timers = [];
 	const pending = new Set();
 	const requests = [];
@@ -71,7 +72,8 @@ function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
 		clearTimeout: (id) => pending.delete(id),
 		Date: {now: () => clock.now},
 		document: {createElement: () => ({style: {}})},
-		window: {innerWidth: 1080, innerHeight: 1920}
+		window: {innerWidth: 1080, innerHeight: 1920},
+		...globals
 	});
 	const definition = scripts.modules.WallberryTheme;
 	const mod = Object.create(definition);
@@ -437,6 +439,265 @@ describe("WallberryTheme resume", () => {
 		assert.deepEqual(mod.tints, []);
 		assert.equal(requests.length, 0);
 		assert.deepEqual(timers, [INTERVAL - 60 * 1000]);
+	});
+});
+
+/**
+ * Stands in for the browser's localStorage. With `failing`, every access
+ * throws, as in a browser that blocks storage.
+ */
+class FakeStorage {
+	constructor(failing = false) {
+		this.items = new Map();
+		this.failing = failing;
+	}
+	check() {
+		if (this.failing) {
+			throw new DOMException("The operation is insecure.", "SecurityError");
+		}
+	}
+	getItem(key) {
+		this.check();
+		return this.items.has(key) ? this.items.get(key) : null;
+	}
+	setItem(key, value) {
+		this.check();
+		this.items.set(key, String(value));
+	}
+	removeItem(key) {
+		this.check();
+		this.items.delete(key);
+	}
+}
+
+describe("WallberryTheme stored photo", () => {
+	const INTERVAL = 300 * 1000;
+	const STORED = {url: "https://images.unsplash.com/stored?w=1080", color: "#aa0000", authorName: "Alice", needsDimming: true};
+
+	/**
+	 * Creates the module the way a restart finds it: with storage holding
+	 * `stored` and the module's own processPhoto(). WBColor is left out,
+	 * so a check of the image for dimming fails the test. `answer`
+	 * stands in for the network as in createModule(). With `storage: null`
+	 * the browser has no localStorage.
+	 */
+	function createRestartedModule({config = {}, stored = null, storage = new FakeStorage(), answer = undefined} = {}) {
+		const created = createModule(answer, storage === null ? {} : {localStorage: storage});
+		const {mod} = created;
+		mod.config = {...mod.config, updateInterval: INTERVAL, clearCacheOnStart: false, queries: ["mountains"], ...config};
+		delete mod.processPhoto; // use the module's own
+		if (stored !== null) {
+			storage.setItem(mod.storageKey, JSON.stringify({settings: mod.photoSettings(), ...stored}));
+		}
+		return {...created, storage};
+	}
+
+	function storedRecord(storage, mod) {
+		const text = storage.getItem(mod.storageKey);
+		return text === null ? null : JSON.parse(text);
+	}
+
+	it("shows the stored photo with its tint, author and dimming without an Unsplash request", () => {
+		const {mod, requests, clock, timers} = createRestartedModule({stored: {photo: STORED, due: 400 * 1000}});
+		clock.now = 100 * 1000;
+		mod.start();
+		assert.equal(mod.img.src, STORED.url);
+		assert.equal(mod.img.crossOrigin, "Anonymous");
+		mod.img.onload();
+		const data = mod.getTemplateData();
+		assert.equal(data.photoElement, mod.img);
+		assert.equal(data.photoData.color, "#aa0000");
+		assert.equal(data.photoData.authorName, "Alice");
+		assert.equal(data.photoData.needsDimming, true);
+		assert.equal(requests.length, 0);
+		assert.deepEqual(timers, [300 * 1000]);
+	});
+
+	it("waits for Electron's cache to be cleared before showing the stored photo", () => {
+		const {mod} = createRestartedModule({config: {clearCacheOnStart: true}, stored: {photo: STORED, due: INTERVAL}});
+		mod.sendSocketNotification = () => {};
+		mod.start();
+		assert.equal(mod.img, null);
+		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		assert.equal(mod.img.src, STORED.url);
+	});
+
+	it("replaces a photo that became due while MagicMirror was not running, and keeps it on screen until then", async () => {
+		const {mod, requests, clock, timers} = createRestartedModule({config: {autoDimOn: false}, stored: {photo: STORED, due: INTERVAL}});
+		clock.now = 3 * INTERVAL;
+		mod.start();
+		const restored = mod.img;
+		restored.onload();
+		assert.deepEqual(timers, [0]);
+		await mod.fetchPhoto(); // what the timer runs
+		assert.equal(requests.length, 1);
+		assert.equal(mod.photoElement, restored);
+		mod.img.onload();
+		assert.notEqual(mod.photoElement, restored);
+	});
+
+	it("keeps the stored photo on screen when the first fetch fails", async () => {
+		const {mod, storage, clock} = createRestartedModule({
+			stored: {photo: STORED, due: 0},
+			answer: () => new Response("Rate Limit Exceeded", {status: 403})
+		});
+		clock.now = INTERVAL;
+		mod.start();
+		mod.img.onload();
+		await mod.fetchPhoto();
+		const data = mod.getTemplateData();
+		assert.equal(data.photoError.key, "ERROR_RATE_LIMIT");
+		assert.equal(data.photoData.authorName, "Alice");
+		// The template shows a photo before an error.
+		const template = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.njk"), "utf8");
+		assert.ok(template.indexOf("{% if photoElement %}") < template.indexOf("{% elif photoError %}"));
+		// The retry's due time is stored, so that a restart does not fetch earlier.
+		assert.equal(storedRecord(storage, mod).due, 2 * INTERVAL);
+	});
+
+	it("fetches with a notification's payload that arrived while waiting for the cache, after showing the stored photo", () => {
+		const {mod, requests} = createRestartedModule({config: {clearCacheOnStart: true}, stored: {photo: STORED, due: INTERVAL}});
+		mod.sendSocketNotification = () => {};
+		mod.start();
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		mod.img.onload();
+		assert.equal(mod.photoData.authorName, "Alice");
+		assert.equal(requests.length, 1);
+		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
+	});
+
+	it("keeps the stored photo on screen when a notification arrives while it loads and the fetch fails", async () => {
+		const {mod, requests} = createRestartedModule({
+			stored: {photo: STORED, due: INTERVAL},
+			answer: () => new Response("Rate Limit Exceeded", {status: 403})
+		});
+		mod.start();
+		const restored = mod.img;
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		assert.equal(requests.length, 0);
+		restored.onload();
+		assert.equal(requests.length, 1);
+		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
+		await new Promise(setImmediate);
+		const data = mod.getTemplateData();
+		assert.equal(data.photoError.key, "ERROR_RATE_LIMIT");
+		assert.equal(data.photoElement, restored);
+	});
+
+	it("fetches with a notification's payload that arrived while a stored photo failed to load", () => {
+		const {mod, requests} = createRestartedModule({stored: {photo: STORED, due: INTERVAL}});
+		mod.start();
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		mod.img.onerror();
+		assert.equal(requests.length, 1);
+		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
+	});
+
+	it("fetches a new photo on resume with newPhotoOnResume: true only once the stored photo is shown", () => {
+		const {mod, requests} = createRestartedModule({config: {newPhotoOnResume: true}, stored: {photo: STORED, due: INTERVAL}});
+		mod.setBackgroundTint = () => {};
+		mod.start();
+		const restored = mod.img;
+		mod.suspend();
+		mod.resume();
+		assert.equal(requests.length, 0);
+		restored.onload();
+		assert.equal(mod.photoElement, restored);
+		assert.equal(requests.length, 1);
+		assert.equal(new URL(requests[0].url).searchParams.get("query"), "mountains");
+	});
+
+	it("stores every photo that loads, with its due time", async () => {
+		const {mod, storage, clock} = createRestartedModule({config: {autoDimOn: false}});
+		mod.start();
+		await new Promise(setImmediate);
+		mod.img.onload();
+		assert.equal(storedRecord(storage, mod).photo.authorName, "Jane");
+		assert.equal(storedRecord(storage, mod).due, INTERVAL);
+		clock.now = 60 * 1000;
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		await new Promise(setImmediate);
+		mod.img.onload();
+		assert.equal(storedRecord(storage, mod).due, 60 * 1000 + INTERVAL);
+		assert.equal(storedRecord(storage, mod).settings, mod.photoSettings());
+	});
+
+	it("discards the stored photo when an option that selects or sizes photos changed", () => {
+		const changes = {queries: ["sea"], collections: "1538150", orientation: "landscape", imageWidth: 1920, imageHeight: 1080, imageOptions: "fit=max"};
+		for (const [option, value] of Object.entries(changes)) {
+			const {mod, requests, storage} = createRestartedModule({stored: {photo: STORED, due: INTERVAL}});
+			mod.config = {...mod.config, [option]: value};
+			mod.start();
+			assert.equal(requests.length, 1, option);
+			assert.equal(storedRecord(storage, mod), null, option);
+		}
+	});
+
+	it("keeps the stored photo when another option changed", () => {
+		const {mod, requests} = createRestartedModule({stored: {photo: STORED, due: INTERVAL}});
+		mod.config = {...mod.config, updateInterval: 60 * 1000, backgroundOpacity: 0.5};
+		mod.start();
+		assert.equal(requests.length, 0);
+		assert.equal(mod.img.src, STORED.url);
+	});
+
+	it("changes the stored photo no later than updateInterval after a start, also when it was due later", () => {
+		const {mod, timers} = createRestartedModule({stored: {photo: STORED, due: 24 * 60 * 60 * 1000}});
+		mod.start();
+		mod.img.onload();
+		assert.deepEqual(timers, [INTERVAL]);
+	});
+
+	it("does not dim a stored photo with autoDimOn: false", () => {
+		const {mod} = createRestartedModule({config: {autoDimOn: false}, stored: {photo: STORED, due: INTERVAL}});
+		mod.start();
+		mod.img.onload();
+		assert.equal(mod.photoData.needsDimming, undefined);
+	});
+
+	it("leaves a photo restored with autoDimOn: false to be checked for dimming once autoDimOn is on", () => {
+		const {mod, storage} = createRestartedModule({config: {autoDimOn: false}, stored: {photo: STORED, due: INTERVAL}});
+		mod.start();
+		mod.img.onload();
+		// Stored without a result, a start with autoDimOn: true checks it.
+		assert.equal(typeof storedRecord(storage, mod).photo.needsDimming, "undefined");
+	});
+
+	it("discards a stored photo whose image fails to load and fetches a new one", () => {
+		const {mod, requests, storage} = createRestartedModule({stored: {photo: STORED, due: INTERVAL}});
+		mod.start();
+		mod.img.onerror();
+		assert.equal(storedRecord(storage, mod), null);
+		assert.equal(requests.length, 1);
+		assert.equal(mod.photoData, null);
+	});
+
+	it("fetches as before when nothing usable is stored", () => {
+		for (const text of [null, "not json", "null", "42", JSON.stringify({photo: STORED})]) {
+			const {mod, requests, storage} = createRestartedModule();
+			if (text !== null) {
+				storage.setItem(mod.storageKey, text);
+			}
+			mod.start();
+			assert.equal(requests.length, 1, text);
+		}
+	});
+
+	it("works as before when the browser's storage cannot be read or written", async () => {
+		const {mod, requests, timers} = createRestartedModule({config: {autoDimOn: false}, storage: new FakeStorage(true)});
+		mod.start();
+		assert.equal(requests.length, 1);
+		await new Promise(setImmediate);
+		mod.img.onload();
+		assert.equal(mod.photoData.authorName, "Jane");
+		assert.deepEqual(timers, [INTERVAL]);
+	});
+
+	it("works as before in a browser without localStorage", () => {
+		const {mod, requests} = createRestartedModule({storage: null});
+		mod.start();
+		assert.equal(requests.length, 1);
 	});
 });
 
