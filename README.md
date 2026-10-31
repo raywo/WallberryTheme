@@ -67,6 +67,7 @@ Compared with the original's last release, 3.1.0, this fork changes the followin
 - The tints of the background and the fades look equally dark whatever the photo's colour.
 - The photo loads also when Electron is not installed, and the theme keeps changing photos after Unsplash answers with an error, e.g. when the rate limit is exceeded.
 - The photo attribution, the loading message and the error messages are available in German.
+- Other modules can ask for a new photo, optionally with their own search queries or collections, with the notification [`WALLBERRY_FETCH_PHOTO`](#changing-the-photo-from-another-module).
 
 **Clock and font**
 
@@ -170,8 +171,8 @@ The following properties of `WallberryTheme` can be configured. For more informa
 | `unsplashAccessKey`         | String  | Your Unsplash API access key. Sign up for free at [https://unsplash.com/developers](https://unsplash.com/developers). Demo accounts are allowed `50 API requests per hour`. <br><br>  This value is **REQUIRED**
 | `collections`               | String  | A comma-separated list of Unsplash collection IDs that photos should be pulled from. Collection IDs can be found in the URL of the collection, shown in the highlighted part of this screenshot: <img src="images/unsplash-collection-id.png">  <br><br> **Example:** `"1538150,162213"` <br> **Default value:** `""` (no collection, theme will use a random Unsplash photo)
 | `queries`                   | Array   | A list of queries to search for on Unsplash. When multiple queries are specified, one gets randomly picked every refresh. <br><br> **Example:** `["cars", "new york", "black cat"]` <br> **Default value:** `[]`
-| `updateInterval`            | Number  | How often the photo should change (Milliseconds). <br><br> **Default value:** `300000` (5 minutes)
-| `newPhotoOnResume`          | Boolean | Whether WallberryTheme shows a new photo when it is shown again after being hidden, e.g. by a page module such as MMM-pages or by a presence sensor. With `false` it keeps the photo it showed before, which saves Unsplash requests on mirrors that hide and show modules often; the photo then changes once `updateInterval` has passed since the last change, counting the time it was hidden. With `true` every switch fetches a new photo and costs a request. <br><br> **Possible values:** `true` (new photo) or `false` (keep the photo) <br>**Default value:** `false`
+| `updateInterval`            | Number  | How often the photo should change (Milliseconds). Each change costs an Unsplash request: below `72000` (72 seconds) a demo key runs out of requests within the hour, see [Unsplash's rate limit](#unsplashs-rate-limit). <br><br> **Default value:** `300000` (5 minutes)
+| `newPhotoOnResume`          | Boolean | Whether WallberryTheme shows a new photo when it is shown again after being hidden, e.g. by a page module such as MMM-pages or by a presence sensor. With `false` it keeps the photo it showed before, which saves Unsplash requests on mirrors that hide and show modules often; the photo then changes once `updateInterval` has passed since the last change, counting the time it was hidden. With `true` every switch fetches a new photo and costs a request, see [Unsplash's rate limit](#unsplashs-rate-limit). <br><br> **Possible values:** `true` (new photo) or `false` (keep the photo) <br>**Default value:** `false`
 | `orientation`               | String  | What screen orientation photos should be optimized for. <br><br> **Possible values:** `"portrait"`, `"landscape"`, or `"squarish"` <br> **Default value:** `"portrait"`
 | `backgroundOpacity`         | Number  | Controls the darkness of the background photo. <br><br> **Possible values:** Any number from `0.0` (black screen) to `1` (fully bright image)<br> **E.G.**: `0.5` would be the background at half brightness<br> **Default value:** `1`
 | `brightImageOpacity`        | Number  | Controls the darkness of photos that `autoDimOn` dims. Only used when `autoDimOn` is `true`. <br><br> **Possible values:** Any number from `0.0` (black screen) to `1` (fully bright image)<br> **Default value:** `0.85`
@@ -181,6 +182,57 @@ The following properties of `WallberryTheme` can be configured. For more informa
 | `imageHeight`               | String or Number  | Use "auto" to use your screen's height, or specify a hardcoded width in pixels. <br><br> **Default value:** `"auto"`
 | `imageWidth`                | String or Number  | Use "auto" to use your screen's width, or specify a hardcoded width in pixels. <br><br> **Default value:** `"auto"`
 | `imageOptions`              | String  | See [Unsplash documentation](https://unsplash.com/documentation#dynamically-resizable-images) for supported parameters. <br><br> **Default value:** `"fit=crop"`
+
+### Unsplash's rate limit
+
+A demo access key allows 50 requests per hour; once Unsplash approves your application for production, the key allows 1,000. Every new photo costs one request, wherever the change comes from:
+
+- the start of MagicMirror,
+- every `updateInterval`,
+- every time the module is shown again, with `newPhotoOnResume: true`,
+- every [`WALLBERRY_FETCH_PHOTO`](#changing-the-photo-from-another-module) notification, e.g. on each page change.
+
+The changes add up within the hour. A photo every 5 minutes uses 12 requests per hour; a mirror that also asks for a new photo on each page change and switches pages every minute needs 60 more and runs out of a demo key's requests within the hour.
+
+Once the limit is exceeded, the photo on screen stays and stops changing until the hour is over; WallberryTheme tries again after each `updateInterval`. Only without a photo, e.g. right after the start, it shows the message that the rate limit is exceeded. Mirrors that share an access key share its limit.
+
+### Changing the photo from another module
+
+Other modules can ask WallberryTheme for a new photo with the notification `WALLBERRY_FETCH_PHOTO`, e.g. to show a photo that fits the page of a mirror with several pages. WallberryTheme fetches and shows a new photo right away, and changes it again a full `updateInterval` later. If WallberryTheme is hidden when the notification arrives, it fetches the photo once it is shown again.
+
+The payload is optional and chooses the photo for this one fetch:
+
+| Payload key   | Type            | Description
+| --------------|-----------------| ----------------
+| `queries`     | Array or String | Search queries, one of which is picked at random, like the `queries` option. <br><br> **Example:** `["football", "stadium"]`
+| `collections` | String          | A comma-separated list of Unsplash collection IDs, like the `collections` option. <br><br> **Example:** `"1538150,162213"`
+
+A payload with `queries` or `collections` replaces both options for this fetch, so configured collections do not narrow a page's search; a key it leaves out is empty. Without a payload, or with neither key, the configured `queries` and `collections` apply. The fetch after `updateInterval` uses the configured values again.
+
+Every notification costs an Unsplash request, on top of the photo changes of `updateInterval`. A demo key allows 50 requests per hour: a mirror that switches pages every minute and asks for a photo on each switch runs out of requests within the hour, and its photo then stops changing. See [Unsplash's rate limit](#unsplashs-rate-limit).
+
+[MMM-pages](https://github.com/edward-shen/MMM-pages) does not send this notification itself, but announces each page change with `NEW_PAGE` and the page's index. [MMM-NotificationTrigger](https://github.com/MMRIZE/MMM-NotificationTrigger) can turn that into a photo request; this config shows sports photos on the second page and the configured photos on all others:
+
+```javascript
+{
+  module: "MMM-NotificationTrigger",
+  config: {
+    triggers: [
+      {
+        trigger: "NEW_PAGE",
+        fires: [
+          {
+            fire: "WALLBERRY_FETCH_PHOTO",
+            payload: (page) => (page === 1 ? {queries: ["football", "stadium"]} : null)
+          }
+        ]
+      }
+    ]
+  }
+},
+```
+
+MMM-pages also sends `NEW_PAGE` when it starts. If that arrives after WallberryTheme's first photo request, this config fetches a second photo at startup, which costs one more request.
 
 ## Text on coloured backgrounds
 
