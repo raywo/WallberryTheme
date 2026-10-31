@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - WallberryTheme now keeps its photo when it is shown again after being hidden, e.g. by MMM-pages, instead of fetching a new one each time, which saves Unsplash requests; the photo changes once `updateInterval` has passed since the last change, counting the time it was hidden. Set `newPhotoOnResume: true` to get a new photo on every switch as before ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
+- WB-weather's `classic-wallberry` template now shows the degree sign after the current temperature and the forecast's low and high temperatures as large as the numbers, in their font, instead of the smaller Weather Icons glyph ([#54](https://github.com/raywo/WallberryTheme/issues/54)).
 
 ### Fixed
 - WallberryTheme keeps showing its photo and tries again after `updateInterval` when a new photo fails to load, instead of never changing the photo again ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
