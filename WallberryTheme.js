@@ -13,6 +13,7 @@ Module.register("WallberryTheme", {
 		queries: [], // list of search queries to search for
 
 		updateInterval: 300 * 1000, // 5 min
+		newPhotoOnResume: false, // true: fetch a new photo when the module is shown again after being hidden
 		orientation: "portrait", // desired photo orientation - can be portrait, landscape, or squarish
 		resizeForScreen: true, // resize image for screen - otherwise image is displayed at full height/width
 		backgroundOpacity: 1, // between 0 (black background) and 1 (visible opaque background)
@@ -29,6 +30,8 @@ Module.register("WallberryTheme", {
 	photoElement: null,
 	photoError: null,
 	fetchTimer: null,
+	nextFetchTime: null, // ms timestamp the scheduled fetch is due at, null while a fetch runs
+	suspended: false, // true between suspend() and resume()
 	img: null,
 	requestTimeout: 30 * 1000, // abort an Unsplash request that has not answered after 30 s
 	fadeMinHeight: 250, // px, the min-height of .wbfade in css/WallberryTheme.css
@@ -100,6 +103,7 @@ Module.register("WallberryTheme", {
 		}
 
 		this.photoError = null;
+		this.nextFetchTime = null;
 
 		// The rejection handler covers only the request and reading its
 		// body, so an error while showing the photo is not reported as a
@@ -164,9 +168,21 @@ Module.register("WallberryTheme", {
 	processError: function(error) {
 		this.photoError = error;
 		this.updateDom();
+		this.scheduleFetch(this.config.updateInterval);
+	},
+
+	// The only place that starts the fetch timer, so that resume() knows
+	// when the next fetch is due. While suspended it only records the due
+	// time: a hidden module must not use up Unsplash requests.
+	scheduleFetch: function(delay) {
+		clearTimeout(this.fetchTimer);
+		this.nextFetchTime = Date.now() + delay;
+		if (this.suspended) {
+			return;
+		}
 		this.fetchTimer = setTimeout(() => {
 			this.fetchPhoto();
-		}, this.config.updateInterval);
+		}, delay);
 	},
 
 	processPhoto: function(photoData) {
@@ -183,25 +199,39 @@ Module.register("WallberryTheme", {
 		// the tints of the background and the fades from its hue
 		p.color = photoData.color;
 		p.authorName = photoData.user.name;
-		this.photoData = p;
 
-		if (this.img === null)
-			this.img = document.createElement("img");
+		// A fresh image per photo, and photoData and photoElement only
+		// change once it has loaded: the template, resume() and the tint
+		// read them, and must keep describing the photo on screen if this
+		// one fails to load. Only the latest image counts, should an
+		// earlier one finish after it.
+		const img = document.createElement("img");
+		this.img = img;
 
-		this.img.style.opacity = this.config.backgroundOpacity;
-		this.img.onload = () => {
-			if (this.config.autoDimOn) {
-				this.photoData.needsDimming = WBColor.needsDimming(this.img, this.getBarAreas(this.img.naturalHeight || this.img.height));
+		img.style.opacity = this.config.backgroundOpacity;
+		img.onload = () => {
+			if (img !== this.img) {
+				return;
 			}
+			if (this.config.autoDimOn) {
+				p.needsDimming = WBColor.needsDimming(img, this.getBarAreas(img.naturalHeight || img.height));
+			}
+			this.photoData = p;
+			this.photoElement = img;
 			this.updateDom(2000);
-			this.fetchTimer = setTimeout(() => {
-				this.fetchPhoto();
-			}, this.config.updateInterval);
+			this.scheduleFetch(this.config.updateInterval);
+		};
+		// Keep showing the previous photo and try again later.
+		img.onerror = () => {
+			if (img !== this.img) {
+				return;
+			}
+			Log.error("WallberryTheme: could not load the photo ", p.url);
+			this.scheduleFetch(this.config.updateInterval);
 		};
 
-		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
-		this.img.src = this.photoData.url;
-		this.photoElement = this.img;
+		img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
+		img.src = p.url;
 	},
 
 	// The areas of the photo behind the top and bottom bar, as rows in
@@ -227,14 +257,34 @@ Module.register("WallberryTheme", {
 
 	suspend: function() {
 		Log.info("Suspending WallberryTheme...");
+		this.suspended = true;
 		this.setBackgroundTint(null); // set background back to black
 		clearTimeout(this.fetchTimer);
 	},
 
 	resume: function() {
 		Log.info("Waking WallberryTheme...");
+		this.suspended = false;
 		clearTimeout(this.fetchTimer);
-		this.fetchPhoto();
+		if (this.config.newPhotoOnResume) {
+			this.fetchPhoto();
+			return;
+		}
+
+		// Keep the photo: restore the tint suspend() reset, and fetch when
+		// the photo is due, counting the time the module was hidden.
+		if (this.photoData) {
+			this.setBackgroundTint(this.photoData.color);
+		}
+		// Without a due time a fetch is running, and it schedules the next.
+		if (this.nextFetchTime !== null) {
+			const remaining = this.nextFetchTime - Date.now();
+			if (remaining > 0) {
+				this.scheduleFetch(remaining);
+			} else {
+				this.fetchPhoto();
+			}
+		}
 	},
 
 	nunjucksEnvironment: function() {
