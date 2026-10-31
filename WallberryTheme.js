@@ -31,6 +31,7 @@ Module.register("WallberryTheme", {
 	photoError: null,
 	fetchTimer: null,
 	nextFetchTime: null, // ms timestamp the scheduled fetch is due at, null while a fetch runs
+	suspended: false, // true between suspend() and resume()
 	img: null,
 	requestTimeout: 30 * 1000, // abort an Unsplash request that has not answered after 30 s
 	fadeMinHeight: 250, // px, the min-height of .wbfade in css/WallberryTheme.css
@@ -171,10 +172,14 @@ Module.register("WallberryTheme", {
 	},
 
 	// The only place that starts the fetch timer, so that resume() knows
-	// when the next fetch is due.
+	// when the next fetch is due. While suspended it only records the due
+	// time: a hidden module must not use up Unsplash requests.
 	scheduleFetch: function(delay) {
 		clearTimeout(this.fetchTimer);
 		this.nextFetchTime = Date.now() + delay;
+		if (this.suspended) {
+			return;
+		}
 		this.fetchTimer = setTimeout(() => {
 			this.fetchPhoto();
 		}, delay);
@@ -242,12 +247,14 @@ Module.register("WallberryTheme", {
 
 	suspend: function() {
 		Log.info("Suspending WallberryTheme...");
+		this.suspended = true;
 		this.setBackgroundTint(null); // set background back to black
 		clearTimeout(this.fetchTimer);
 	},
 
 	resume: function() {
 		Log.info("Waking WallberryTheme...");
+		this.suspended = false;
 		clearTimeout(this.fetchTimer);
 		if (this.config.newPhotoOnResume) {
 			this.fetchPhoto();

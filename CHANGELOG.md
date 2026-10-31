@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - WallberryTheme keeps showing its photo and tries again after `updateInterval` when a new photo fails to load, instead of never changing the photo again ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
+- WallberryTheme no longer fetches photos while it is hidden when a fetch was still running as it was hidden ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
 
 ## 4.0.0 - 2026-10-31
 The first release of this fork. It breaks WB-weather configs that leave out `providerName` or use Dark Sky: the entries marked **Breaking** say what to change, and [WB-weather's README](WB-weather/README.md#upgrading-from-an-earlier-version) explains each case.

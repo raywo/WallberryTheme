@@ -227,6 +227,19 @@ describe("WallberryTheme resume", () => {
 		assert.deepEqual(timers, [INTERVAL, INTERVAL - 100 * 1000]);
 	});
 
+	it("starts no timer while suspended and leaves it to resume", async () => {
+		const {mod, timers, clock} = createShowingModule({autoDimOn: false});
+		delete mod.processPhoto; // use the module's own
+		const fetching = mod.fetchPhoto();
+		mod.suspend();
+		await fetching;
+		mod.img.onload();
+		assert.deepEqual(timers, []);
+		clock.now = 100 * 1000;
+		mod.resume();
+		assert.deepEqual(timers, [INTERVAL - 100 * 1000]);
+	});
+
 	it("takes the due time from when the photo loaded", () => {
 		const {mod} = createModuleWithDocument();
 		const before = Date.now();
