@@ -227,6 +227,37 @@ describe("WallberryTheme resume", () => {
 		assert.deepEqual(timers, [INTERVAL, INTERVAL - 100 * 1000]);
 	});
 
+	it("keeps the shown photo, its tint and its author when the next photo fails to load", () => {
+		const {mod} = createShowingModule({autoDimOn: false});
+		delete mod.processPhoto; // use the module's own
+		const shown = {urls: {raw: "https://images.unsplash.com/shown?x"}, color: "#aa0000", user: {name: "Alice"}};
+		const failed = {urls: {raw: "https://images.unsplash.com/failed?x"}, color: "#0000bb", user: {name: "Bob"}};
+		mod.processPhoto(shown);
+		mod.img.onload();
+		mod.processPhoto(failed);
+		mod.img.onerror();
+		const data = mod.getTemplateData();
+		assert.equal(data.photoData.authorName, "Alice");
+		assert.match(data.photoElement.src, /\/shown\?/);
+		mod.suspend();
+		mod.resume();
+		assert.equal(mod.tints.at(-1), "#aa0000");
+	});
+
+	it("ignores a photo that finishes loading after a newer one started", () => {
+		const {mod, timers} = createShowingModule({autoDimOn: false});
+		delete mod.processPhoto; // use the module's own
+		mod.processPhoto({...PHOTO, user: {name: "Alice"}});
+		const older = mod.img;
+		mod.processPhoto({...PHOTO, user: {name: "Bob"}});
+		mod.img.onload();
+		older.onload();
+		older.onerror();
+		assert.equal(mod.photoData.authorName, "Bob");
+		assert.equal(mod.photoElement, mod.img);
+		assert.deepEqual(timers, [INTERVAL]);
+	});
+
 	it("starts no timer while suspended and leaves it to resume", async () => {
 		const {mod, timers, clock} = createShowingModule({autoDimOn: false});
 		delete mod.processPhoto; // use the module's own
@@ -348,6 +379,7 @@ describe("WallberryTheme background tint", () => {
 	it("keeps the photo's colour swatch for the tints", () => {
 		const {mod} = createModuleWithDocument();
 		mod.processPhoto(PHOTO);
+		mod.img.onload();
 		assert.equal(mod.photoData.color, "#336699");
 	});
 

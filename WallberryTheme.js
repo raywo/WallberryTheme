@@ -199,29 +199,39 @@ Module.register("WallberryTheme", {
 		// the tints of the background and the fades from its hue
 		p.color = photoData.color;
 		p.authorName = photoData.user.name;
-		this.photoData = p;
 
-		if (this.img === null)
-			this.img = document.createElement("img");
+		// A fresh image per photo, and photoData and photoElement only
+		// change once it has loaded: the template, resume() and the tint
+		// read them, and must keep describing the photo on screen if this
+		// one fails to load. Only the latest image counts, should an
+		// earlier one finish after it.
+		const img = document.createElement("img");
+		this.img = img;
 
-		this.img.style.opacity = this.config.backgroundOpacity;
-		this.img.onload = () => {
-			if (this.config.autoDimOn) {
-				this.photoData.needsDimming = WBColor.needsDimming(this.img, this.getBarAreas(this.img.naturalHeight || this.img.height));
+		img.style.opacity = this.config.backgroundOpacity;
+		img.onload = () => {
+			if (img !== this.img) {
+				return;
 			}
+			if (this.config.autoDimOn) {
+				p.needsDimming = WBColor.needsDimming(img, this.getBarAreas(img.naturalHeight || img.height));
+			}
+			this.photoData = p;
+			this.photoElement = img;
 			this.updateDom(2000);
 			this.scheduleFetch(this.config.updateInterval);
 		};
-		// Keep showing the previous photo and try again later. No
-		// updateDom(): the template would render the broken image.
-		this.img.onerror = () => {
-			Log.error("WallberryTheme: could not load the photo ", this.photoData.url);
+		// Keep showing the previous photo and try again later.
+		img.onerror = () => {
+			if (img !== this.img) {
+				return;
+			}
+			Log.error("WallberryTheme: could not load the photo ", p.url);
 			this.scheduleFetch(this.config.updateInterval);
 		};
 
-		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
-		this.img.src = this.photoData.url;
-		this.photoElement = this.img;
+		img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
+		img.src = p.url;
 	},
 
 	// The areas of the photo behind the top and bottom bar, as rows in
