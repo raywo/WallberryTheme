@@ -33,6 +33,7 @@ Module.register("WallberryTheme", {
 	nextFetchTime: null, // ms timestamp the scheduled fetch is due at, null while a fetch runs
 	suspended: false, // true between suspend() and resume()
 	waitingForCache: false, // true from start() until Electron's cache is cleared
+	restoring: false, // true while the photo stored by the last run loads, see showFirstPhoto()
 	fetchId: 0, // counts the fetches, so that only the latest one shows its result
 	requestedSource: null, // {queries, collections} of a notification that arrived while suspended or waiting for the cache
 	img: null,
@@ -75,16 +76,20 @@ Module.register("WallberryTheme", {
 	// request. Runs after Electron's cache is cleared: a cached image
 	// would fail the cross-origin check (delightedCrow/WallberryTheme#8).
 	showFirstPhoto: function() {
-		const requested = this.requestedSource;
-		this.requestedSource = null;
 		const stored = this.readStoredPhoto();
 		if (stored === null) {
-			this.fetchPhoto(requested ?? undefined);
+			this.fetchRequestedPhoto();
 			return;
 		}
+		// While the stored photo loads, a notification or resume only
+		// records its source, as while waiting for the cache: fetching now
+		// would drop the stored photo, and a failing fetch would leave the
+		// screen black with the error message.
+		this.restoring = true;
 		this.loadPhoto(stored.photo, () => {
-			if (requested !== null) {
-				this.fetchPhoto(requested);
+			this.restoring = false;
+			if (this.requestedSource !== null) {
+				this.fetchRequestedPhoto();
 				return;
 			}
 			// A due photo is replaced right away; until the new one has
@@ -92,9 +97,18 @@ Module.register("WallberryTheme", {
 			// updateInterval applies at once, not after the stored due time.
 			this.scheduleFetch(Math.min(this.config.updateInterval, Math.max(0, stored.due - Date.now())));
 		}, () => {
+			this.restoring = false;
 			this.discardStoredPhoto();
-			this.fetchPhoto(requested ?? undefined);
+			this.fetchRequestedPhoto();
 		});
+	},
+
+	// Fetches with the source a notification recorded, or with the
+	// configured one.
+	fetchRequestedPhoto: function() {
+		const requested = this.requestedSource;
+		this.requestedSource = null;
+		this.fetchPhoto(requested ?? undefined);
 	},
 
 	getTemplate: function() {
@@ -129,10 +143,11 @@ Module.register("WallberryTheme", {
 			return;
 		}
 		const source = this.photoSource(payload);
-		// A hidden module must not use up Unsplash requests, and the first
-		// fetch waits for the cache: fetch with this source once it is
-		// shown again or the cache is cleared.
-		if (this.suspended || this.waitingForCache) {
+		// A hidden module must not use up Unsplash requests, the first
+		// fetch waits for the cache, and a stored photo that is loading
+		// must not be dropped: fetch with this source once it is shown
+		// again, the cache is cleared or the stored photo is shown.
+		if (this.suspended || this.waitingForCache || this.restoring) {
 			this.requestedSource = source;
 			return;
 		}
@@ -174,9 +189,10 @@ Module.register("WallberryTheme", {
 		// This fetch replaces any that is scheduled or still running: it
 		// schedules the next one itself, and a running one must not show
 		// its photo or error over this one's. Dropping the image that may
-		// still be loading makes processPhoto() ignore it.
+		// still be loading makes loadPhoto() ignore it, also a stored one.
 		clearTimeout(this.fetchTimer);
 		this.img = null;
+		this.restoring = false;
 		this.fetchId += 1;
 		const fetchId = this.fetchId;
 		const isLatest = () => fetchId === this.fetchId;
@@ -434,10 +450,16 @@ Module.register("WallberryTheme", {
 		Log.info("Waking WallberryTheme...");
 		this.suspended = false;
 		clearTimeout(this.fetchTimer);
-		const requested = this.requestedSource;
-		this.requestedSource = null;
-		if (requested !== null || this.config.newPhotoOnResume) {
-			this.fetchPhoto(requested ?? undefined);
+		// The stored photo that is loading fetches the recorded source once
+		// it is shown, and schedules the next fetch otherwise.
+		if (this.restoring) {
+			if (this.config.newPhotoOnResume && this.requestedSource === null) {
+				this.requestedSource = this.photoSource();
+			}
+			return;
+		}
+		if (this.requestedSource !== null || this.config.newPhotoOnResume) {
+			this.fetchRequestedPhoto();
 			return;
 		}
 

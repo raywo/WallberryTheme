@@ -567,6 +567,47 @@ describe("WallberryTheme stored photo", () => {
 		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
 	});
 
+	it("keeps the stored photo on screen when a notification arrives while it loads and the fetch fails", async () => {
+		const {mod, requests} = createRestartedModule({
+			stored: {photo: STORED, due: INTERVAL},
+			answer: () => new Response("Rate Limit Exceeded", {status: 403})
+		});
+		mod.start();
+		const restored = mod.img;
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		assert.equal(requests.length, 0);
+		restored.onload();
+		assert.equal(requests.length, 1);
+		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
+		await new Promise(setImmediate);
+		const data = mod.getTemplateData();
+		assert.equal(data.photoError.key, "ERROR_RATE_LIMIT");
+		assert.equal(data.photoElement, restored);
+	});
+
+	it("fetches with a notification's payload that arrived while a stored photo failed to load", () => {
+		const {mod, requests} = createRestartedModule({stored: {photo: STORED, due: INTERVAL}});
+		mod.start();
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		mod.img.onerror();
+		assert.equal(requests.length, 1);
+		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
+	});
+
+	it("fetches a new photo on resume with newPhotoOnResume: true only once the stored photo is shown", () => {
+		const {mod, requests} = createRestartedModule({config: {newPhotoOnResume: true}, stored: {photo: STORED, due: INTERVAL}});
+		mod.setBackgroundTint = () => {};
+		mod.start();
+		const restored = mod.img;
+		mod.suspend();
+		mod.resume();
+		assert.equal(requests.length, 0);
+		restored.onload();
+		assert.equal(mod.photoElement, restored);
+		assert.equal(requests.length, 1);
+		assert.equal(new URL(requests[0].url).searchParams.get("query"), "mountains");
+	});
+
 	it("stores every photo that loads, with its due time", async () => {
 		const {mod, storage, clock} = createRestartedModule({config: {autoDimOn: false}});
 		mod.start();
