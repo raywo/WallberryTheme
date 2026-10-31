@@ -36,6 +36,7 @@ Module.register("WallberryTheme", {
 	fetchId: 0, // counts the fetches, so that only the latest one shows its result
 	requestedSource: null, // {queries, collections} of a notification that arrived while suspended or waiting for the cache
 	img: null,
+	storageKey: "WallberryTheme.photo", // localStorage key of the photo shown last, see storePhoto()
 	requestTimeout: 30 * 1000, // abort an Unsplash request that has not answered after 30 s
 	fadeMinHeight: 250, // px, the min-height of .wbfade in css/WallberryTheme.css
 
@@ -65,8 +66,35 @@ Module.register("WallberryTheme", {
 			this.waitingForCache = true;
 			this.sendSocketNotification("CLEAR_CACHE");
 		} else {
-			this.fetchPhoto();
+			this.showFirstPhoto();
 		}
+	},
+
+	// Shows the photo stored by the last run, if there is one, and fetches
+	// a new one only when it is due, so that a restart costs no Unsplash
+	// request. Runs after Electron's cache is cleared: a cached image
+	// would fail the cross-origin check (delightedCrow/WallberryTheme#8).
+	showFirstPhoto: function() {
+		const requested = this.requestedSource;
+		this.requestedSource = null;
+		const stored = this.readStoredPhoto();
+		if (stored === null) {
+			this.fetchPhoto(requested ?? undefined);
+			return;
+		}
+		this.loadPhoto(stored.photo, () => {
+			if (requested !== null) {
+				this.fetchPhoto(requested);
+				return;
+			}
+			// A due photo is replaced right away; until the new one has
+			// loaded, the stored one stays on screen. A shortened
+			// updateInterval applies at once, not after the stored due time.
+			this.scheduleFetch(Math.min(this.config.updateInterval, Math.max(0, stored.due - Date.now())));
+		}, () => {
+			this.discardStoredPhoto();
+			this.fetchPhoto(requested ?? undefined);
+		});
 	},
 
 	getTemplate: function() {
@@ -86,13 +114,10 @@ Module.register("WallberryTheme", {
 
 	socketNotificationReceived: function(notification) {
 		switch(notification) {
-		case "ELECTRON_CACHE_CLEARED": {
+		case "ELECTRON_CACHE_CLEARED":
 			this.waitingForCache = false;
-			const requested = this.requestedSource;
-			this.requestedSource = null;
-			this.fetchPhoto(requested ?? undefined);
+			this.showFirstPhoto();
 			break;
-		}
 		}
 
 	},
@@ -232,10 +257,13 @@ Module.register("WallberryTheme", {
 
 	// The only place that starts the fetch timer, so that resume() knows
 	// when the next fetch is due. While suspended it only records the due
-	// time: a hidden module must not use up Unsplash requests.
+	// time: a hidden module must not use up Unsplash requests. Every new
+	// due time is stored with the photo, also after an error, so that a
+	// restart does not fetch earlier than the running module would.
 	scheduleFetch: function(delay) {
 		clearTimeout(this.fetchTimer);
 		this.nextFetchTime = Date.now() + delay;
+		this.storePhoto();
 		if (this.suspended) {
 			return;
 		}
@@ -259,6 +287,19 @@ Module.register("WallberryTheme", {
 		p.color = photoData.color;
 		p.authorName = photoData.user.name;
 
+		// Keep showing the previous photo and try again later if this one
+		// fails to load.
+		this.loadPhoto(p, () => {
+			this.scheduleFetch(this.config.updateInterval);
+		}, () => {
+			this.scheduleFetch(this.config.updateInterval);
+		});
+	},
+
+	// p: {url, color, authorName, needsDimming}; needsDimming is checked
+	// on the image unless it is already known. Calls onShown once the
+	// photo is on screen, onFailed if its image does not load.
+	loadPhoto: function(p, onShown, onFailed) {
 		// A fresh image per photo, and photoData and photoElement only
 		// change once it has loaded: the template, resume() and the tint
 		// read them, and must keep describing the photo on screen if this
@@ -272,25 +313,93 @@ Module.register("WallberryTheme", {
 			if (img !== this.img) {
 				return;
 			}
-			if (this.config.autoDimOn) {
+			if (this.config.autoDimOn && typeof p.needsDimming !== "boolean") {
 				p.needsDimming = WBColor.needsDimming(img, this.getBarAreas(img.naturalHeight || img.height));
 			}
 			this.photoData = p;
 			this.photoElement = img;
 			this.updateDom(2000);
-			this.scheduleFetch(this.config.updateInterval);
+			onShown();
 		};
-		// Keep showing the previous photo and try again later.
 		img.onerror = () => {
 			if (img !== this.img) {
 				return;
 			}
 			Log.error("WallberryTheme: could not load the photo ", p.url);
-			this.scheduleFetch(this.config.updateInterval);
+			onFailed();
 		};
 
 		img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
 		img.src = p.url;
+	},
+
+	// The options that decide which photo Unsplash returns and how its
+	// image is sized. A stored photo is shown only while they are the
+	// same, so that a changed config shows a new photo at the next start.
+	photoSettings: function() {
+		const c = this.config;
+		return JSON.stringify([c.queries, c.collections, c.orientation, c.imageWidth, c.imageHeight, c.imageOptions]);
+	},
+
+	// Keeps the photo on screen and its due time in the browser, so that
+	// a restart or reload shows it again without an Unsplash request.
+	// Each browser keeps its own. Without storage, e.g. when the browser
+	// blocks it, the module works as if nothing was stored.
+	storePhoto: function() {
+		if (this.photoData === null) {
+			return;
+		}
+		try {
+			localStorage.setItem(this.storageKey, JSON.stringify({
+				settings: this.photoSettings(),
+				photo: this.photoData,
+				due: this.nextFetchTime
+			}));
+		} catch (error) {
+			Log.warn("WallberryTheme: could not store the photo ", error);
+		}
+	},
+
+	// Returns {photo, due} of the stored photo, or null without a usable
+	// one. A photo stored with other settings is discarded.
+	readStoredPhoto: function() {
+		let stored = null;
+		try {
+			const text = localStorage.getItem(this.storageKey);
+			if (text === null) {
+				return null;
+			}
+			stored = JSON.parse(text);
+		} catch {
+			stored = null;
+		}
+		const photo = stored?.photo;
+		if (stored?.settings !== this.photoSettings() || typeof stored.due !== "number" ||
+			typeof photo?.url !== "string" || typeof photo.authorName !== "string") {
+			this.discardStoredPhoto();
+			return null;
+		}
+		return {
+			photo: {
+				url: photo.url,
+				color: photo.color,
+				authorName: photo.authorName,
+				// With autoDimOn: false the photo is not dimmed, whatever
+				// was stored, and is stored again without a result, so that
+				// turning autoDimOn on checks it; a photo stored without the
+				// check gets it now.
+				needsDimming: this.config.autoDimOn ? photo.needsDimming : undefined
+			},
+			due: stored.due
+		};
+	},
+
+	discardStoredPhoto: function() {
+		try {
+			localStorage.removeItem(this.storageKey);
+		} catch {
+			// nothing stored that could be shown
+		}
 	},
 
 	// The areas of the photo behind the top and bottom bar, as rows in

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added WallberryTheme's `newPhotoOnResume` option: set it to `true` to fetch a new photo each time the module is shown again after being hidden ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
 - Added the notification `WALLBERRY_FETCH_PHOTO`, with which another module makes WallberryTheme show a new photo right away, optionally with its own `queries` or `collections`, e.g. a photo that fits the page of MMM-pages ([#46](https://github.com/raywo/WallberryTheme/issues/46)).
+- WallberryTheme now shows the photo it showed before after MagicMirror restarts or the browser reloads, instead of a black background until Unsplash answers, and fetches a new one only when its change is due, so that a restart costs no Unsplash request; changing `queries`, `collections`, `orientation`, `imageWidth`, `imageHeight` or `imageOptions` brings a new photo at the next start ([#53](https://github.com/raywo/WallberryTheme/issues/53)).
 
 ### Changed
 - WallberryTheme now keeps its photo when it is shown again after being hidden, e.g. by MMM-pages, instead of fetching a new one each time, which saves Unsplash requests; the photo changes once `updateInterval` has passed since the last change, counting the time it was hidden. Set `newPhotoOnResume: true` to get a new photo on every switch as before ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
