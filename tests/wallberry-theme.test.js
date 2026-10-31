@@ -67,7 +67,9 @@ function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
 			return timers.length;
 		},
 		clearTimeout: () => {},
-		Date: {now: () => clock.now}
+		Date: {now: () => clock.now},
+		document: {createElement: () => ({style: {}})},
+		window: {innerWidth: 1080, innerHeight: 1920}
 	});
 	const definition = scripts.modules.WallberryTheme;
 	const mod = Object.create(definition);
@@ -211,6 +213,18 @@ describe("WallberryTheme resume", () => {
 		mod.resume();
 		assert.equal(requests.length, 1);
 		assert.deepEqual(timers, []);
+	});
+
+	it("schedules the next fetch when the photo fails to load", async () => {
+		const {mod, requests, timers, clock} = createShowingModule();
+		delete mod.processPhoto; // use the module's own
+		await mod.fetchPhoto();
+		mod.img.onerror();
+		mod.suspend();
+		clock.now = 100 * 1000;
+		mod.resume();
+		assert.equal(requests.length, 1);
+		assert.deepEqual(timers, [INTERVAL, INTERVAL - 100 * 1000]);
 	});
 
 	it("takes the due time from when the photo loaded", () => {

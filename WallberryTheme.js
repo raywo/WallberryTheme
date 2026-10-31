@@ -207,6 +207,12 @@ Module.register("WallberryTheme", {
 			this.updateDom(2000);
 			this.scheduleFetch(this.config.updateInterval);
 		};
+		// Keep showing the previous photo and try again later. No
+		// updateDom(): the template would render the broken image.
+		this.img.onerror = () => {
+			Log.error("WallberryTheme: could not load the photo ", this.photoData.url);
+			this.scheduleFetch(this.config.updateInterval);
+		};
 
 		this.img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
 		this.img.src = this.photoData.url;
