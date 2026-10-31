@@ -1,4 +1,4 @@
-/* Magic Mirror - WallberryTheme <3
+/* MagicMirror² - WallberryTheme <3
  * Module: WB-weather
  *
  * By JSC (@delightedCrow)
@@ -10,6 +10,7 @@
 * A class representing current weather data.
 * @class
 */
+// biome-ignore lint/correctness/noUnusedVariables: a global for the other scripts MagicMirror² loads
 class WBWeather {
 	constructor() {
 		// TODO: Expand WBWeather's properties with some of the more common weather data info available
@@ -42,6 +43,7 @@ class WBWeather {
 * A class representing forecasted weather data.
 * @class
 */
+// biome-ignore lint/correctness/noUnusedVariables: a global for the other scripts MagicMirror² loads
 class WBForecast {
 	constructor() {
 		// TODO: Expand WBForecast's properties with some of the more common weather data info available
@@ -84,6 +86,7 @@ class WBForecast {
 * A class representing an error.
 * @class
 */
+// biome-ignore lint/correctness/noUnusedVariables: a global for the other scripts MagicMirror² loads
 class WBError {
 	constructor(isTemporary, description, delay) {
 		/**

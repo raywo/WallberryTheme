@@ -1,4 +1,4 @@
-/* Magic Mirror - WallberryTheme <3
+/* MagicMirror² - WallberryTheme <3
  * Module: WB-clock
  *
  * By JSC (@delightedCrow)
@@ -38,10 +38,10 @@ Module.register("WB-clock",{
 		timeData.date = now.format(this.config.dateTimeFormat);
 		timeData.ampm = now.format("a");
 
-		for (var cityElem in this.config.otherCities) {
-			var city = {};
+		for (const cityElem in this.config.otherCities) {
+			const city = {};
 			city.name = this.config.otherCities[cityElem].name;
-			let tz = this.config.otherCities[cityElem].timezone;
+			const tz = this.config.otherCities[cityElem].timezone;
 			city.time = now.tz(tz).format(this.config.hourMinuteFormat);
 			city.ampm = now.tz(tz).format("a");
 			timeData.cities.push(city);
@@ -54,7 +54,7 @@ Module.register("WB-clock",{
 	},
 
 	start: function() {
-		Log.info("Starting module: " + this.name);
+		Log.info(`Starting module: ${this.name}`);
 
 		// Update clock every second
 		this.updateTimer = setInterval(() => {
@@ -68,7 +68,7 @@ Module.register("WB-clock",{
 		if (!this.config.hourMinuteFormat) {
 
 			// then we try and choose an appropriate format based on MM2 config
-			if (this.config.timeFormat == 12) {
+			if (Number(this.config.timeFormat) === 12) {
 				this.config.hourMinuteFormat = "h:mm";
 			} else {
 				this.config.hourMinuteFormat = "HH:mm";
@@ -88,16 +88,16 @@ Module.register("WB-clock",{
 	 * month or day, e.g. Finnish "MMMM[ta]" or an ordinal "D.", stay.
 	 */
 	dateFormatFromLongDate: function(longDateFormat) {
-		var parts = longDateFormat.match(/\[[^\]]*\]|[A-Za-z]+|[^[A-Za-z]/g) || [];
-		var isToken = (part) => /^[A-Za-z]+$/.test(part);
-		var year = parts.findIndex((part) => /^[Yy]+$/.test(part));
+		const parts = longDateFormat.match(/\[[^\]]*\]|[A-Za-z]+|[^[A-Za-z]/g) || [];
+		const isToken = (part) => /^[A-Za-z]+$/.test(part);
+		const year = parts.findIndex((part) => /^[Yy]+$/.test(part));
 
 		if (year !== -1) {
-			var previous = year - 1;
+			let previous = year - 1;
 			while (previous >= 0 && !isToken(parts[previous])) {
 				previous--;
 			}
-			var next = year + 1;
+			let next = year + 1;
 			while (next < parts.length && !isToken(parts[next])) {
 				next++;
 			}
@@ -107,17 +107,17 @@ Module.register("WB-clock",{
 				parts.splice(0, next);
 			} else {
 				// keep literals and ordinal dots glued to the previous token
-				var start = previous + 1;
+				let start = previous + 1;
 				while (start < year && (parts[start].startsWith("[") || parts[start] === ".")) {
 					start++;
 				}
 				// a trailing year takes everything after it along
-				var end = next === parts.length ? parts.length : year + 1;
+				const end = next === parts.length ? parts.length : year + 1;
 				parts.splice(start, end - start);
 			}
 		}
 
-		return "dddd, " + parts.join("").trim();
+		return `dddd, ${parts.join("").trim()}`;
 	},
 
 	suspend: function() {
@@ -134,8 +134,6 @@ Module.register("WB-clock",{
 		if (this._nunjucksEnvironment !== null) {
 			return this._nunjucksEnvironment;
 		}
-
-		var self = this;
 
 		this._nunjucksEnvironment = new nunjucks.Environment(new nunjucks.WebLoader(this.file(""), {async: true, useCache: true}), {
 			trimBlocks: true,

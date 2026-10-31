@@ -1,23 +1,23 @@
 # Module: WB-clock
+Part of [WallberryTheme](../README.md), which describes the [installation](../README.md#installation) and [updating](../README.md#updating) of all three modules.
+
 The `WB-clock` module is a digital clock designed to complement the `WallberryTheme` module. It displays the local time and date, and can display the local time for as many other locales as you care to configure.
 
 ## Using the module
 
 To use this module, add it to the modules array in the `config/config.js` file:
 ````javascript
-modules: [
-	{
-		module: "WallberryTheme/WB-clock",
-		position: "top_bar", // highly suggest using top_bar position
-		config: {
-			localCityName: "Seattle", // optional
-			otherCities: [
-				{name: "DC", timezone: "US/Eastern"}, // optional
-				{name: "Anchorage", timezone: "US/Alaska"} //optional
-			]
-		}
+{
+	module: "WallberryTheme/WB-clock",
+	position: "top_bar", // highly suggest using top_bar position
+	config: {
+		localCityName: "Seattle", // optional
+		otherCities: [
+			{name: "DC", timezone: "US/Eastern"}, // optional
+			{name: "Anchorage", timezone: "US/Alaska"} //optional
+		]
 	}
-]
+},
 ````
 
 ## Configuration options

@@ -1,4 +1,4 @@
-/* Magic Mirror - WallberryTheme <3
+/* MagicMirror² - WallberryTheme <3
  * Module: WB-weather
  *
  * MIT Licensed.
@@ -109,7 +109,7 @@ class WBOpenMeteo extends WBProvider {
 		super(config, delegate);
 		this.baseURL = "https://api.open-meteo.com/v1/forecast";
 
-		let params = {
+		const params = {
 			"latitude": config.latitude,
 			"longitude": config.longitude,
 			"current": "temperature_2m,weather_code,is_day",
@@ -120,7 +120,7 @@ class WBOpenMeteo extends WBProvider {
 		};
 		// Open-Meteo has no Kelvin, so everything but "imperial" stays Celsius
 		if (config.units === "imperial") {
-			params["temperature_unit"] = "fahrenheit";
+			params.temperature_unit = "fahrenheit";
 		}
 		this.url = this.getQueryStringURL(this.baseURL, params);
 	}

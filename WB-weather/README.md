@@ -1,22 +1,22 @@
 # Module: WB-weather
+Part of [WallberryTheme](../README.md), which describes the [installation](../README.md#installation) and [updating](../README.md#updating) of all three modules.
+
 The `WB-weather` module was designed to complement the `WallberryTheme` module and displays the current weather and forecast. It gets the weather from the provider you choose with `providerName`: [Open-Meteo](https://open-meteo.com/), which needs no API key, or [OpenWeatherMap](https://openweathermap.org/).
 
 ## Using the module
 
 To use this module, add it to the modules array in the `config/config.js` file:
 ````javascript
-modules: [
-	{
-		module: "WallberryTheme/WB-weather",
-		position: "bottom_bar",  // Highly suggested location
-		config: {
-			// See "Configuration options" for more information.
-			providerName: "openmeteo",
-			latitude:   47.603230,
-			longitude: -122.330276
-		}
+{
+	module: "WallberryTheme/WB-weather",
+	position: "bottom_bar",  // Highly suggested location
+	config: {
+		// See "Configuration options" for more information.
+		providerName: "openmeteo",
+		latitude:   47.603230,
+		longitude: -122.330276
 	}
-]
+},
 ````
 
 Without `providerName`, WB-weather shows an error naming the possible values instead of the weather.
@@ -70,17 +70,15 @@ These general options should honored the same across all weather providers. Spec
 #### Sample WB-weather config Using Open-Meteo
 
 ````javascript
-modules: [
-	{
-		module: "WallberryTheme/WB-weather",
-		position: "bottom_bar",  // Highly suggested location
-		config: {
-			providerName: "openmeteo",
-			latitude:   47.603230,
-			longitude: -122.330276
-		}
+{
+	module: "WallberryTheme/WB-weather",
+	position: "bottom_bar",  // Highly suggested location
+	config: {
+		providerName: "openmeteo",
+		latitude:   47.603230,
+		longitude: -122.330276
 	}
-]
+},
 ````
 
 ### OpenWeatherMap
@@ -104,19 +102,17 @@ modules: [
 #### Sample WB-weather config Using OpenWeatherMap
 
 ````javascript
-modules: [
-	{
-		module: "WallberryTheme/WB-weather",
-		position: "bottom_bar",  // Highly suggested location
-		config: {
-			// See "Configuration options" for more information.
-			apiKey: "add your OpenWeatherMap API KEY here",
-			providerName: "openweathermap",
-			latitude:   47.603230,
-			longitude: -122.330276
-		}
+{
+	module: "WallberryTheme/WB-weather",
+	position: "bottom_bar",  // Highly suggested location
+	config: {
+		// See "Configuration options" for more information.
+		apiKey: "add your OpenWeatherMap API KEY here",
+		providerName: "openweathermap",
+		latitude:   47.603230,
+		longitude: -122.330276
 	}
-]
+},
 ````
 -------------------------------
 
@@ -131,7 +127,7 @@ The current default template for WB-weather. Displays the current weather and up
 
 Sample Screenshot:
 
-<img src="screenshots/wb-weather-wallberry-classic.jpg">
+<img src="images/wb-weather-wallberry-classic.jpg">
 
 -------------------------------
 
@@ -142,7 +138,7 @@ Sample Screenshot:
 **BEFORE** you submit your pull request:
 
 - Please read [The Contributing Section of the WallberryTheme README](../README.md#Contributing).
-- **If you add a Template**: include a section for your template under the  `Available Display Templates` header in this README with the appropriate documentation (see the classic-wallberry template above for an example). **Make sure you include a sample screenshot of your template.**
+- **If you add a Template**: include a section for your template under the  `Available Display Templates` header in this README with the appropriate documentation (see the classic-wallberry template above for an example). **Make sure you include a sample screenshot of your template**, saved in `WB-weather/images/`.
 - **If you add a Weather Provider**: include a section for your provider under the `Available Weather Providers` header in this README with appropriate documentation (see the openweathermap provider for above for an example).
 
 -------------------------------

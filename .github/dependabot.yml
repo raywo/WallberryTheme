@@ -1,0 +1,8 @@
+# The module has no npm dependencies, so only the GitHub Actions of the
+# workflows need updates.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

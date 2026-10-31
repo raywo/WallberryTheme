@@ -1,0 +1,27 @@
+{
+	"name": "wallberrytheme",
+	"version": "4.0.0",
+	"description": "A MagicMirror² theme that shows a random Unsplash photo as the background, with the companion modules WB-clock and WB-weather.",
+	"keywords": [
+		"MagicMirror",
+		"theme",
+		"background",
+		"unsplash",
+		"photos",
+		"clock",
+		"weather"
+	],
+	"homepage": "https://github.com/raywo/WallberryTheme#readme",
+	"bugs": {
+		"url": "https://github.com/raywo/WallberryTheme/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/raywo/WallberryTheme.git"
+	},
+	"license": "MIT",
+	"author": "Ray Wojciechowski (https://github.com/raywo)",
+	"contributors": [
+		"Jess Coulter (https://github.com/delightedCrow)"
+	]
+}

@@ -1,4 +1,4 @@
-/* Magic Mirror - WallberryTheme <3
+/* MagicMirror² - WallberryTheme <3
  * Module: WB-weather
  *
  * By JSC (@delightedCrow)
@@ -40,13 +40,13 @@ Module.register("WB-weather", {
 	},
 
 	getScripts: function() {
-		let scripts = [
+		const scripts = [
 			"moment.js",
 			"WB-dataObjects.js",
 			"WB-provider.js"
 		];
 		if (this.config.providerName) {
-			scripts.push(this.file("providers/WB-" + this.config.providerName + ".js"));
+			scripts.push(this.file(`providers/WB-${this.config.providerName}.js`));
 		}
 		return scripts;
 	},
@@ -54,7 +54,7 @@ Module.register("WB-weather", {
 	getStyles: function() {
 		return [
 			"weather-icons.css",
-			this.file("css/" + this.config.template + ".css")
+			this.file(`css/${this.config.template}.css`)
 		];
 	},
 
@@ -76,8 +76,8 @@ Module.register("WB-weather", {
 		this.addNunjuckFilters();
 
 		if (!this.config.providerName) {
-			let names = this.providerNames.map(name => `"${name}"`).join(" or ");
-			let message = `WB-weather needs the providerName option. Add providerName: ${names} to the module's config.`;
+			const names = this.providerNames.map(name => `"${name}"`).join(" or ");
+			const message = `WB-weather needs the providerName option. Add providerName: ${names} to the module's config.`;
 			this.error = new WBError(false, message);
 			Log.error(message);
 			return;
@@ -88,7 +88,7 @@ Module.register("WB-weather", {
 
 		this.provider = WBProviderManager.initialize(this.config, this);
 		if (this.provider == null) {
-			let message = `Cannot find a weather provider named "${this.config.providerName}". Please check your config settings.`
+			const message = `Cannot find a weather provider named "${this.config.providerName}". Please check your config settings.`
 			this.error = new WBError(false, message);
 			Log.error(message);
 		} else {

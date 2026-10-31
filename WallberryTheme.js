@@ -1,4 +1,4 @@
-/* Magic Mirror - WallberryTheme <3
+/* MagicMirror² - WallberryTheme <3
  * Module: WallberryTheme
  *
  * By JSC (@delightedCrow)
@@ -54,7 +54,7 @@ Module.register("WallberryTheme", {
 	},
 
 	start: function() {
-		Log.info("Starting module: " + this.name);
+		Log.info(`Starting module: ${this.name}`);
 		if (this.config.clearCacheOnStart) {
 			this.sendSocketNotification("CLEAR_CACHE");
 		} else {
@@ -77,7 +77,7 @@ Module.register("WallberryTheme", {
 		};
 	},
 
-	socketNotificationReceived: function(notification, payload) {
+	socketNotificationReceived: function(notification) {
 		switch(notification) {
 		case "ELECTRON_CACHE_CLEARED":
 			this.fetchPhoto();
@@ -93,44 +93,43 @@ Module.register("WallberryTheme", {
 			"&orientation=" + this.config.orientation;
 
 		if (this.config.queries.length > 0) {
-			let query = this.config.queries[Math.floor(Math.random() * this.config.queries.length)];
+			const query = this.config.queries[Math.floor(Math.random() * this.config.queries.length)];
 
 			url = url +
 				"&query=" + encodeURIComponent(query);
 		}
 
 		this.photoError = null;
-		var req = new XMLHttpRequest();
-		var mod = this;
 
-		req.addEventListener("load", function() {
-			const result = mod.parseUnsplashResponse(
-				this.status,
-				this.statusText,
-				this.responseText,
-				this.getResponseHeader("X-Ratelimit-Remaining")
+		// The rejection handler covers only the request and reading its
+		// body, so an error while showing the photo is not reported as a
+		// connection error. Returns the promise for the tests.
+		return fetch(url, {
+			headers: {"Accept-Version": "v1"},
+			signal: AbortSignal.timeout(this.requestTimeout)
+		}).then((response) => {
+			return response.text().then((responseText) => ({response, responseText}));
+		}).then(({response, responseText}) => {
+			const result = this.parseUnsplashResponse(
+				response.status,
+				response.statusText,
+				responseText,
+				response.headers.get("X-Ratelimit-Remaining")
 			);
 			if (result.photo) {
-				mod.processPhoto(result.photo);
+				this.processPhoto(result.photo);
 			} else {
-				Log.error("Unsplash Error: ", this.status, this.responseText);
-				mod.processError(result.error);
+				Log.error("Unsplash Error: ", response.status, responseText);
+				this.processError(result.error);
+			}
+		}, (error) => {
+			if (error.name === "TimeoutError") {
+				this.processError({key: "ERROR_TIMEOUT", variables: {seconds: this.requestTimeout / 1000}});
+			} else {
+				// most likely an internet connection issue
+				this.processError({key: "ERROR_CONNECTION"});
 			}
 		});
-
-		req.addEventListener("error", function() {
-			// most likely an internet connection issue
-			mod.processError({key: "ERROR_CONNECTION"});
-		});
-
-		req.addEventListener("timeout", function() {
-			mod.processError({key: "ERROR_TIMEOUT", variables: {seconds: mod.requestTimeout / 1000}});
-		});
-
-		req.open("GET", url);
-		req.timeout = this.requestTimeout;
-		req.setRequestHeader("Accept-Version", "v1");
-		req.send();
 	},
 
 	// Turns an Unsplash response into either {photo} or {error}. Never
@@ -142,7 +141,7 @@ Module.register("WallberryTheme", {
 		let data = null;
 		try {
 			data = JSON.parse(responseText);
-		} catch (e) {
+		} catch {
 			data = null;
 		}
 		const isObject = data !== null && typeof data === "object";
@@ -172,8 +171,8 @@ Module.register("WallberryTheme", {
 
 	processPhoto: function(photoData) {
 		var p = {};
-		let width = this.config.imageWidth == "auto" ? window.innerWidth : this.config.imageWidth;
-		let height = this.config.imageHeight == "auto" ? window.innerHeight : this.config.imageHeight;
+		const width = this.config.imageWidth === "auto" ? window.innerWidth : this.config.imageWidth;
+		const height = this.config.imageHeight === "auto" ? window.innerHeight : this.config.imageHeight;
 
 		p.url = photoData.urls.raw +
 			"&w=" + width +
@@ -212,7 +211,7 @@ Module.register("WallberryTheme", {
 	getBarAreas: function(imageHeight) {
 		const screenHeight = window.innerHeight;
 		return ["top", "bottom"].map((position) => {
-			const regionClassName = "region " + position + " bar";
+			const regionClassName = `region ${position} bar`;
 			const region = document.getElementsByClassName(regionClassName)[0].getBoundingClientRect();
 			const fadeHeight = Math.max(this.fadeMinHeight, this.getFadeHeight(regionClassName));
 			const fadeStart = position === "top" ? 0 : screenHeight - fadeHeight;
@@ -263,7 +262,7 @@ Module.register("WallberryTheme", {
 	*/
 	getFadeHeight: function(regionClassName) {
 		// we auto-adjust the height of the background fades to be at least the height of the top bar region and bottom bar regions, in case they're bigger than the 250px min height we set in the css
-		let region = document.getElementsByClassName(regionClassName)[0];
+		const region = document.getElementsByClassName(regionClassName)[0];
 		return region.clientHeight + 70; // +70 for margin+padding
 	},
 
@@ -272,8 +271,8 @@ Module.register("WallberryTheme", {
 		// setting the html/body background colors to the dark shade gives a much richer color to the image when it becomes transparent.
 		// We set the image to be transparent when we want to dim it (because the black background then comes through), but having a pure black background can cause the image to look greyish and washed out.
 		// The fades read --wb-swatch too, through the tints in css/WallberryTheme.css.
-		let html = document.documentElement;
-		let body = document.body;
+		const html = document.documentElement;
+		const body = document.body;
 		let background = "black";
 		if (swatch) {
 			html.style.setProperty("--wb-swatch", swatch);

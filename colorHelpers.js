@@ -2,6 +2,7 @@
  * the modules in the top and bottom bar. It reads a downscaled copy of
  * the photo, so the check stays cheap on a Raspberry Pi.
  */
+// biome-ignore lint/correctness/noUnusedVariables: a global for the other scripts MagicMirror² loads
 var WBColor = {
 	SAMPLE_SIZE: 64, // px on the long side of the downscaled copy
 	BRIGHT_PERCENTILE: 0.9, // a bright patch counts once it covers a tenth of a bar
@@ -140,6 +141,7 @@ var WBColor = {
 		const P_out = 0.1;
 		const R_scale = 1.14;
 		const B_threshold = 0.022;
+		// biome-ignore lint/suspicious/noApproximativeNumericConstant: APCA defines the exponent as 1.414, not as the square root of 2
 		const B_exp = 1.414;
 
 		const l_text = this.luminance(...text);
@@ -149,14 +151,14 @@ var WBColor = {
 		const Y_text =
 			l_text >= B_threshold
 				? l_text
-				: l_text + Math.pow(B_threshold - l_text, B_exp);
+				: l_text + (B_threshold - l_text) ** B_exp;
 		const Y_bg =
-			l_bg >= B_threshold ? l_bg : l_bg + Math.pow(B_threshold - l_bg, B_exp);
+			l_bg >= B_threshold ? l_bg : l_bg + (B_threshold - l_bg) ** B_exp;
 
 		// normal polarity (dark text on light background)
-		const S_norm = Math.pow(Y_bg, 0.56) - Math.pow(Y_text, 0.57);
+		const S_norm = Y_bg ** 0.56 - Y_text ** 0.57;
 		// reverse polarity (light text on dark background)
-		const S_rev = Math.pow(Y_bg, 0.65) - Math.pow(Y_text, 0.62);
+		const S_rev = Y_bg ** 0.65 - Y_text ** 0.62;
 		// clamp noise then scale
 		const C =
 			Math.abs(Y_bg - Y_text) < P_in
@@ -172,9 +174,9 @@ var WBColor = {
 
 	luminance: function(r, g, b) {
 		return (
-			0.2126729 * Math.pow(r / 255, 2.4) +
-			0.7151522 * Math.pow(g / 255, 2.4) +
-			0.072175 * Math.pow(b / 255, 2.4)
+			0.2126729 * (r / 255) ** 2.4 +
+			0.7151522 * (g / 255) ** 2.4 +
+			0.072175 * (b / 255) ** 2.4
 		);
 	}
 };

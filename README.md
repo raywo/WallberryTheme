@@ -4,9 +4,19 @@ The `WallberryTheme` module re-themes [MagicMirror²](https://github.com/MagicMi
 
 The WallberryTheme also comes packaged with two companion modules for displaying the time (`WB-clock`) and weather (`WB-weather`).
 
+## Modules in this repository
+
+| Module | Shows | Documentation |
+|--------|-------|---------------|
+| `WallberryTheme` | The background photo from Unsplash, with fades and auto-dim for readable text | [Configuration options](#configuration-options) below |
+| `WB-clock` | The local time and date, optionally the time in other cities | [WB-clock's README](WB-clock/README.md) |
+| `WB-weather` | The current weather and a forecast of several days | [WB-weather's README](WB-weather/README.md) |
+
+One clone installs all three; [Installation](#installation) and [Updating](#updating) below apply to each of them.
+
 ## About this fork
 
-This is a fork of [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme), created by Jess Coulter. The original is no longer updated: its last release, 3.1.0, came out in 2021, and its weather module has stopped working since, as Apple shut down Dark Sky's API and OpenWeatherMap shut down One Call 2.5. This fork keeps the theme running on current MagicMirror² installations: it brings back the weather, with a provider that needs no API key, and fixes the bugs it finds along the way.
+This is a fork of [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme), created by Jess Coulter. It is an independent continuation: Jess Coulter is not involved in it. The original is no longer updated: its last release, 3.1.0, came out in 2021, and its weather module has stopped working since, as Apple shut down Dark Sky's API and OpenWeatherMap shut down One Call 2.5. This fork keeps the theme running on current MagicMirror² installations: it brings back the weather, with a provider that needs no API key, and fixes the bugs it finds along the way.
 
 Fixes and updates come on a best-effort basis, without fixed release dates. Please report bugs and suggest features in this repository's [issues](https://github.com/raywo/WallberryTheme/issues), not in the original's.
 
@@ -33,10 +43,10 @@ Already running the original? See [Switching from the original](#switching-from-
 - The `autoDimOn` feature checks how well white text reads in the areas behind the top bar and bottom bar regions, measured on the photo as it looks under the background fades, and dims the photo when the contrast is too low for body text. Photos that are bright only where no text sits, or dominated by deep, saturated colours, stay vibrant.
 
 **No background fade, auto dim set to off:**
-<img src="screenshots/autodim-off.png">
+<img src="images/autodim-off.png">
 
 **With addBackgroundFade and autoDimOn (on their default settings):**
-<img src="screenshots/autodim-on.png">
+<img src="images/autodim-on.png">
 
 ## Differences from the original
 
@@ -77,44 +87,7 @@ To use this module and its companion modules:
     cd ~/MagicMirror/modules
     git clone https://github.com/raywo/WallberryTheme.git
     ```
-2.  Add the modules to the modules array in the `config/config.js` file like in the following example:
-
-````javascript
-modules: [
-  // Base WallberryTheme adds new font, styles, and a rotating background image pulled from Unsplash.com
-  {
-    module: "WallberryTheme",
-    position: "fullscreen_below", // Required Position
-    config: {
-      unsplashAccessKey: "Your Unsplash API Key", // REQUIRED
-      collections: "2589108" // optional - leave empty for a random photo
-    }
-  },
-  // WB-clock adds local time (Optional Module)
-  {
-    module: "WallberryTheme/WB-clock",
-    position: "top_bar", // highly suggest using top_bar position
-    config: {
-      localCityName: "Seattle", // optional
-      otherCities: [
-      	{name: "DC", timezone: "US/Eastern"}, // optional
-      	{name: "Anchorage", timezone: "US/Alaska"} // optional
-      ]
-    }
-  },
-  // WB-weather adds weather (Optional Module)
-  {
-    module: "WallberryTheme/WB-weather",
-    position: "bottom_bar",  // Highly suggested location
-    config: {
-      // See "Configuration options" for more information.
-      providerName: "openmeteo", // REQUIRED
-      latitude:   47.603230, // REQUIRED
-      longitude: -122.330276 // REQUIRED
-    }
-  }
-]
-````
+2.  Add the modules to the `modules` array in your `config/config.js` file, as the example under [Configuration](#configuration) shows.
 
 ## Updating
 
@@ -125,7 +98,7 @@ cd ~/MagicMirror/modules/WallberryTheme
 git pull
 ```
 
-Before you update, check the [Changelog](CHANGELOG.md) for changes marked **Breaking**: they need a change to your config.
+Before you update, check the [Changelog](CHANGELOG.md) for changes marked **Breaking**: they need a change to your config. The [releases](https://github.com/raywo/WallberryTheme/releases) list the same changes for each version.
 
 ## Switching from the original
 
@@ -148,7 +121,46 @@ If you installed the original from delightedCrow/WallberryTheme, you switch to t
 3.  If your WB-clock config has `OtherCities`, rename it to `otherCities`: the original's WB-clock README named it with a capital O, which WB-clock ignores.
 4.  Restart MagicMirror.
 
-## Configuration options
+## Configuration
+
+The following example configures all three modules; WB-clock and WB-weather are optional. Paste it into the `modules` array of your `config/config.js`:
+
+```javascript
+// Base WallberryTheme adds new font, styles, and a rotating background image pulled from Unsplash.com
+{
+  module: "WallberryTheme",
+  position: "fullscreen_below", // Required Position
+  config: {
+    unsplashAccessKey: "Your Unsplash API Key", // REQUIRED
+    collections: "2589108" // optional - leave empty for a random photo
+  }
+},
+// WB-clock adds local time (Optional Module)
+{
+  module: "WallberryTheme/WB-clock",
+  position: "top_bar", // highly suggest using top_bar position
+  config: {
+    localCityName: "Seattle", // optional
+    otherCities: [
+      {name: "DC", timezone: "US/Eastern"}, // optional
+      {name: "Anchorage", timezone: "US/Alaska"} // optional
+    ]
+  }
+},
+// WB-weather adds weather (Optional Module)
+{
+  module: "WallberryTheme/WB-weather",
+  position: "bottom_bar",  // Highly suggested location
+  config: {
+    // See "Configuration options" for more information.
+    providerName: "openmeteo", // REQUIRED
+    latitude:   47.603230, // REQUIRED
+    longitude: -122.330276 // REQUIRED
+  }
+},
+```
+
+### Configuration options
 
 The following properties of `WallberryTheme` can be configured. For more information on how to configure the [WB-clock](WB-clock/README.md) and [WB-weather](WB-weather/README.md) modules see their individual README files.
 
@@ -156,7 +168,7 @@ The following properties of `WallberryTheme` can be configured. For more informa
 | Option                      | Type    | Description
 | ----------------------------|---------| ----------------
 | `unsplashAccessKey`         | String  | Your Unsplash API access key. Sign up for free at [https://unsplash.com/developers](https://unsplash.com/developers). Demo accounts are allowed `50 API requests per hour`. <br><br>  This value is **REQUIRED**
-| `collections`               | String  | A comma-separated list of Unsplash collection IDs that photos should be pulled from. Collection IDs can be found in the URL of the collection, shown in the highlighted part of this screenshot: <img src="screenshots/unsplash-collection-id.png">  <br><br> **Example:** `"1538150,162213"` <br> **Default value:** `""` (no collection, theme will use a random Unsplash photo)
+| `collections`               | String  | A comma-separated list of Unsplash collection IDs that photos should be pulled from. Collection IDs can be found in the URL of the collection, shown in the highlighted part of this screenshot: <img src="images/unsplash-collection-id.png">  <br><br> **Example:** `"1538150,162213"` <br> **Default value:** `""` (no collection, theme will use a random Unsplash photo)
 | `queries`                   | Array   | A list of queries to search for on Unsplash. When multiple queries are specified, one gets randomly picked every refresh. <br><br> **Example:** `["cars", "new york", "black cat"]` <br> **Default value:** `[]`
 | `updateInterval`            | Number  | How often the photo should change (Milliseconds). <br><br> **Default value:** `300000` (5 minutes)
 | `orientation`               | String  | What screen orientation photos should be optimized for. <br><br> **Possible values:** `"portrait"`, `"landscape"`, or `"squarish"` <br> **Default value:** `"portrait"`

@@ -5,7 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## 4.0.0 - 2026-10-31
+The first release of this fork. It breaks WB-weather configs that leave out `providerName` or use Dark Sky: the entries marked **Breaking** say what to change, and [WB-weather's README](WB-weather/README.md#upgrading-from-an-earlier-version) explains each case.
+
 ### Added
+- Added a `package.json`, which the [MagicMirror² module list](https://modules.magicmirror.builders/) expects and from whose keywords it shows the module's tags ([#6](https://github.com/raywo/WallberryTheme/issues/6)).
 - Added a German translation of WallberryTheme's texts (the photo attribution, the loading message and the error messages), shown with `language: "de"` ([#4](https://github.com/raywo/WallberryTheme/issues/4)).
 - Added WB-weather's Open-Meteo provider, which needs no API key: set `providerName: "openmeteo"` with `latitude` and `longitude`. The `classic-wallberry` template now keeps the forecast in one row next to the current weather, which fits up to 5 days on a 1080 px wide portrait screen ([#7](https://github.com/raywo/WallberryTheme/issues/7)).
 - Added weather icons to WB-weather's Open-Meteo provider: the current weather shows a day or night icon, depending on whether the sun is up, and forecast days a day icon; a forecast day with a snow weather code now shows the snowflake also when Open-Meteo forecasts no snowfall ([#8](https://github.com/raywo/WallberryTheme/issues/8)).
@@ -14,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Breaking:** WB-weather's `providerName` no longer defaults to `"openweathermap"` and is required; a config without it shows an error instead of the weather. Add `providerName: "openweathermap",` to keep OpenWeatherMap, or `providerName: "openmeteo",` to use Open-Meteo without an `apiKey` ([#7](https://github.com/raywo/WallberryTheme/issues/7)).
+- The README starts with a table of the three modules linking to their documentation, WB-clock's and WB-weather's READMEs link back to installation and updating, and the config examples are single modules ending in a comma, which you paste into your `modules` array as they are ([#6](https://github.com/raywo/WallberryTheme/issues/6)).
 - Development continues in the fork [raywo/WallberryTheme](https://github.com/raywo/WallberryTheme), since [delightedCrow/WallberryTheme](https://github.com/delightedCrow/WallberryTheme) is no longer updated. Install from there, and submit pull requests to `main`.
 - The README now explains why this fork exists, lists how it differs from the original's 3.1.0, and shows how to switch an existing clone of the original to this fork and how to update; it no longer requires an OpenWeatherMap key, and the announcements of earlier releases are now part of the feature list ([#18](https://github.com/raywo/WallberryTheme/issues/18)).
 - The tints of the background and of the top and bottom fades now look equally dark whatever the photo's colour; they are derived in CSS with OKLCH, and browsers without relative colour syntax show neutral dark fades ([#19](https://github.com/raywo/WallberryTheme/issues/19)).

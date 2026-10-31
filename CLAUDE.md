@@ -14,11 +14,19 @@ longer maintained; this fork carries the development on.
 
 ## Build, lint, test
 
-There is no `package.json`, no bundler and no linter config. Files are
-loaded as-is by MagicMirror. The workflow in `.github/workflows/` runs lint
-and tests on every pull request.
+There is no bundler. Files are loaded as-is by MagicMirror.
+`package.json` only carries the metadata the MagicMirror² module list
+reads (license, keywords); keep it free of dependencies and keep its
+`version` in step with `CHANGELOG.md`. The workflow in
+`.github/workflows/` runs lint and tests on every pull request.
 
-- Lint (syntax only): `git ls-files '*.js' | xargs -n1 node --check`
+- Syntax check: `git ls-files '*.js' | xargs -n1 node --check`
+- Lint: `pnpm dlx @biomejs/biome@2.6.3 ci .` – Biome runs as a standalone
+  binary, so it needs no dependency in `package.json`. Keep its version
+  the same in the `$schema` of `biome.json`, in the workflow and here.
+- A new global that the scripts share goes into `javascript.globals` in
+  `biome.json`; its declaration gets a `biome-ignore` comment for
+  `noUnusedVariables` with the reason, like the existing ones.
 - Tests: `node --test "tests/**/*.test.js"` (Node's built-in runner, no
   dependencies). Single file: `node --test tests/<name>.test.js`.
 - Module scripts are browser scripts that define globals; load them in a
@@ -32,8 +40,8 @@ and tests on every pull request.
   MagicMirror installation with the module configured in
   `config/config.js`; say in the report that it was not verified there if
   you could not.
-- Do not add an external test runner (Vitest, Jest): it needs a
-  `package.json`, a lockfile and dependency updates.
+- Do not add an external test runner (Vitest, Jest) or ESLint: they need
+  dependencies, a lockfile and dependency updates.
 
 Runtime dependencies come from the MagicMirror host, not from this repo:
 `Module`, `Log`, `config`, `nunjucks`, `moment.js`, `moment-timezone.js`,
@@ -56,8 +64,8 @@ to register their own filters (`translate`, `dayLabel`, `precipIcons`).
 
 ### WallberryTheme (root)
 
-- Fetches a random Unsplash photo via XHR in the browser, renders it as a
-  `fullscreen_below` background.
+- Fetches a random Unsplash photo with `fetch` in the browser, renders it
+  as a `fullscreen_below` background.
 - `node_helper.js` clears Electron's cache on start (`CLEAR_CACHE` →
   `ELECTRON_CACHE_CLEARED`); the module only fetches a photo after that
   reply, so the helper must always answer, also without Electron.
@@ -108,6 +116,10 @@ lower-cased in `start()` and used to build file paths.
 - Issue numbers in this fork collide with upstream's. Write `#12` only for
   this fork's issues and `delightedCrow/WallberryTheme#12` for upstream's.
   Older `CHANGELOG.md` entries link upstream issues.
+- Put images in `images/` (or `WB-weather/images/`), never in a path
+  containing "screenshot", "example", "sample" or "preview": the
+  MagicMirror² module list previews the first such image in sorted path
+  order, which must stay `screenshots/wb-screen1.jpg`.
 
 ## Plugin Bindings
 
