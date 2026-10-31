@@ -49,10 +49,11 @@ const PHOTO = {urls: {raw: "https://images.unsplash.com/photo"}, color: "#336699
  * DOM update stubbed out, timers recorded instead of run and a clock
  * that only moves when `clock.now` is set. `answer` stands in for the
  * network: it returns the Response for a request, or throws the error
- * fetch rejects with.
+ * fetch rejects with. `pending` holds the ids of the timers not cleared.
  */
 function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
 	const timers = [];
+	const pending = new Set();
 	const requests = [];
 	const clock = {now: 0};
 	const scripts = loadScripts(["WallberryTheme.js"], {
@@ -64,9 +65,10 @@ function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
 		AbortSignal: {timeout: (milliseconds) => ({timeout: milliseconds})},
 		setTimeout: (_callback, delay) => {
 			timers.push(delay);
+			pending.add(timers.length);
 			return timers.length;
 		},
-		clearTimeout: () => {},
+		clearTimeout: (id) => pending.delete(id),
 		Date: {now: () => clock.now},
 		document: {createElement: () => ({style: {}})},
 		window: {innerWidth: 1080, innerHeight: 1920}
@@ -77,7 +79,7 @@ function createModule(answer = () => new Response(JSON.stringify(PHOTO))) {
 	mod.updateDom = () => {};
 	mod.photos = [];
 	mod.processPhoto = (photo) => mod.photos.push(photo);
-	return {mod, timers, requests, clock, log: scripts.log};
+	return {mod, timers, pending, requests, clock, log: scripts.log};
 }
 
 describe("WallberryTheme parseUnsplashResponse", () => {
@@ -158,6 +160,151 @@ describe("WallberryTheme fetchPhoto", () => {
 		await mod.fetchPhoto();
 		assert.equal(mod.photoError.key, "ERROR_CONNECTION");
 		assert.deepEqual(timers, [mod.config.updateInterval]);
+	});
+});
+
+describe("WallberryTheme photoSource", () => {
+	const {mod} = createModule();
+	mod.config = {...mod.config, queries: ["mountains"], collections: "1538150"};
+	const source = (payload) => JSON.parse(JSON.stringify(mod.photoSource(payload)));
+
+	it("uses the configured queries and collections without a payload", () => {
+		for (const payload of [undefined, null, {}, "text", {queries: null, collections: undefined}]) {
+			assert.deepEqual(source(payload), {queries: ["mountains"], collections: "1538150"}, JSON.stringify(payload));
+		}
+	});
+
+	it("replaces both configured values with a payload that names queries", () => {
+		assert.deepEqual(source({queries: ["sports", "football"]}), {queries: ["sports", "football"], collections: ""});
+	});
+
+	it("replaces both configured values with a payload that names collections", () => {
+		assert.deepEqual(source({collections: "162213"}), {queries: [], collections: "162213"});
+	});
+
+	it("takes both from a payload that names both", () => {
+		assert.deepEqual(source({queries: ["sports"], collections: "162213"}), {queries: ["sports"], collections: "162213"});
+	});
+
+	it("accepts a single query as a string", () => {
+		assert.deepEqual(source({queries: "sports"}), {queries: ["sports"], collections: ""});
+	});
+});
+
+describe("WallberryTheme WALLBERRY_FETCH_PHOTO notification", () => {
+	const INTERVAL = 300 * 1000;
+
+	function createConfiguredModule(answer = undefined) {
+		const created = createModule(answer);
+		created.mod.config = {...created.mod.config, updateInterval: INTERVAL, queries: ["mountains"], collections: "1538150"};
+		return created;
+	}
+
+	it("fetches right away with the payload's query instead of the configured values", () => {
+		const {mod, requests} = createConfiguredModule();
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]}, {name: "MMM-pages"});
+		assert.equal(requests.length, 1);
+		const url = new URL(requests[0].url);
+		assert.equal(url.searchParams.get("query"), "sports");
+		assert.equal(url.searchParams.get("collections"), "");
+	});
+
+	it("fetches with the configured values without a payload", () => {
+		const {mod, requests} = createConfiguredModule();
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", undefined, {name: "MMM-pages"});
+		const url = new URL(requests[0].url);
+		assert.equal(url.searchParams.get("query"), "mountains");
+		assert.equal(url.searchParams.get("collections"), "1538150");
+	});
+
+	it("ignores other notifications", () => {
+		const {mod, requests} = createConfiguredModule();
+		mod.notificationReceived("FETCH_PHOTO", {queries: ["sports"]}, {name: "other"});
+		mod.notificationReceived("DOM_OBJECTS_CREATED");
+		assert.equal(requests.length, 0);
+	});
+
+	it("schedules the next automatic change a full updateInterval later, with one pending timer", async () => {
+		const {mod, timers, pending, clock} = createConfiguredModule();
+		mod.config.autoDimOn = false;
+		delete mod.processPhoto; // use the module's own, which schedules the next fetch
+		mod.scheduleFetch(INTERVAL);
+		clock.now = 200 * 1000;
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		assert.equal(pending.size, 0);
+		await new Promise(setImmediate);
+		mod.img.onload();
+		assert.deepEqual(timers, [INTERVAL, INTERVAL]);
+		assert.equal(pending.size, 1);
+		assert.equal(mod.nextFetchTime, 200 * 1000 + INTERVAL);
+	});
+
+	it("shows only the photo of the latest of several quick requests", async () => {
+		const answers = [];
+		const {mod, timers} = createConfiguredModule(() => new Promise((resolve) => answers.push(resolve)));
+		const older = mod.fetchPhoto(mod.photoSource({queries: ["sports"]}));
+		const newer = mod.fetchPhoto(mod.photoSource({queries: ["news"]}));
+		await new Promise(setImmediate);
+		answers[1](new Response(JSON.stringify({...PHOTO, user: {name: "Newer"}})));
+		await newer;
+		answers[0](new Response(JSON.stringify({...PHOTO, user: {name: "Older"}})));
+		await older;
+		assert.deepEqual(mod.photos.map((photo) => photo.user.name), ["Newer"]);
+		assert.deepEqual(timers, []);
+	});
+
+	it("ignores an error of an older request", async () => {
+		const answers = [];
+		const {mod, timers} = createConfiguredModule(() => new Promise((resolve, reject) => answers.push({resolve, reject})));
+		const older = mod.fetchPhoto();
+		const newer = mod.fetchPhoto(mod.photoSource({queries: ["news"]}));
+		await new Promise(setImmediate);
+		answers[1].resolve(new Response(JSON.stringify(PHOTO)));
+		await newer;
+		answers[0].reject(new TypeError("Failed to fetch"));
+		await older;
+		assert.equal(mod.photoError, null);
+		assert.deepEqual(timers, []);
+	});
+
+	it("ignores a photo of an older request that is still loading", async () => {
+		const {mod} = createConfiguredModule();
+		mod.config.autoDimOn = false;
+		delete mod.processPhoto; // use the module's own
+		mod.updateDom = () => {};
+		await mod.fetchPhoto();
+		const older = mod.img;
+		const newer = mod.fetchPhoto(mod.photoSource({queries: ["news"]}));
+		older.onload();
+		assert.equal(mod.photoElement, null);
+		await newer;
+		mod.img.onload();
+		assert.equal(mod.photoElement, mod.img);
+	});
+
+	it("waits for Electron's cache to be cleared and then fetches with the payload", () => {
+		const {mod, requests} = createConfiguredModule();
+		mod.sendSocketNotification = () => {};
+		mod.start();
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		assert.equal(requests.length, 0);
+		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		assert.equal(requests.length, 1);
+		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
+	});
+
+	it("fetches with the payload once a hidden module is shown again", () => {
+		const {mod, requests} = createConfiguredModule();
+		mod.setBackgroundTint = () => {};
+		mod.suspend();
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		assert.equal(requests.length, 0);
+		mod.resume();
+		assert.equal(requests.length, 1);
+		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
+		mod.suspend();
+		mod.resume();
+		assert.equal(requests.length, 1);
 	});
 });
 

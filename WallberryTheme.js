@@ -32,6 +32,9 @@ Module.register("WallberryTheme", {
 	fetchTimer: null,
 	nextFetchTime: null, // ms timestamp the scheduled fetch is due at, null while a fetch runs
 	suspended: false, // true between suspend() and resume()
+	waitingForCache: false, // true from start() until Electron's cache is cleared
+	fetchId: 0, // counts the fetches, so that only the latest one shows its result
+	requestedSource: null, // {queries, collections} of a notification that arrived while suspended or waiting for the cache
 	img: null,
 	requestTimeout: 30 * 1000, // abort an Unsplash request that has not answered after 30 s
 	fadeMinHeight: 250, // px, the min-height of .wbfade in css/WallberryTheme.css
@@ -59,6 +62,7 @@ Module.register("WallberryTheme", {
 	start: function() {
 		Log.info(`Starting module: ${this.name}`);
 		if (this.config.clearCacheOnStart) {
+			this.waitingForCache = true;
 			this.sendSocketNotification("CLEAR_CACHE");
 		} else {
 			this.fetchPhoto();
@@ -82,26 +86,75 @@ Module.register("WallberryTheme", {
 
 	socketNotificationReceived: function(notification) {
 		switch(notification) {
-		case "ELECTRON_CACHE_CLEARED":
-			this.fetchPhoto();
+		case "ELECTRON_CACHE_CLEARED": {
+			this.waitingForCache = false;
+			const requested = this.requestedSource;
+			this.requestedSource = null;
+			this.fetchPhoto(requested ?? undefined);
 			break;
+		}
 		}
 
 	},
 
-	fetchPhoto: function() {
+	// Another module asks for a new photo, e.g. MMM-pages' page change:
+	// sendNotification("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]}).
+	notificationReceived: function(notification, payload) {
+		if (notification !== "WALLBERRY_FETCH_PHOTO") {
+			return;
+		}
+		const source = this.photoSource(payload);
+		// A hidden module must not use up Unsplash requests, and the first
+		// fetch waits for the cache: fetch with this source once it is
+		// shown again or the cache is cleared.
+		if (this.suspended || this.waitingForCache) {
+			this.requestedSource = source;
+			return;
+		}
+		this.fetchPhoto(source);
+	},
+
+	// The queries and collections a fetch uses: the payload's, if it names
+	// either, otherwise the configured ones. A payload replaces both, since
+	// Unsplash does not combine a query with collections, and a configured
+	// value must not narrow a page's own search.
+	photoSource: function(payload) {
+		const has = (key) => payload !== null && typeof payload === "object" &&
+			payload[key] !== undefined && payload[key] !== null;
+		if (!has("queries") && !has("collections")) {
+			return {queries: this.config.queries, collections: this.config.collections};
+		}
+		const queries = has("queries") ? payload.queries : [];
+		return {
+			queries: Array.isArray(queries) ? queries : [queries],
+			collections: has("collections") ? String(payload.collections) : ""
+		};
+	},
+
+	// source: {queries, collections} from photoSource(), the configured
+	// ones when left out
+	fetchPhoto: function(source = this.photoSource()) {
 		var url = "https://api.unsplash.com/photos/random?" +
 			"client_id=" + this.config.unsplashAccessKey +
-			"&collections=" + this.config.collections +
+			"&collections=" + encodeURIComponent(source.collections) +
 			"&orientation=" + this.config.orientation;
 
-		if (this.config.queries.length > 0) {
-			const query = this.config.queries[Math.floor(Math.random() * this.config.queries.length)];
+		if (source.queries.length > 0) {
+			const query = source.queries[Math.floor(Math.random() * source.queries.length)];
 
 			url = url +
 				"&query=" + encodeURIComponent(query);
 		}
 
+		// This fetch replaces any that is scheduled or still running: it
+		// schedules the next one itself, and a running one must not show
+		// its photo or error over this one's. Dropping the image that may
+		// still be loading makes processPhoto() ignore it.
+		clearTimeout(this.fetchTimer);
+		this.img = null;
+		this.fetchId += 1;
+		const fetchId = this.fetchId;
+		const isLatest = () => fetchId === this.fetchId;
 		this.photoError = null;
 		this.nextFetchTime = null;
 
@@ -114,6 +167,9 @@ Module.register("WallberryTheme", {
 		}).then((response) => {
 			return response.text().then((responseText) => ({response, responseText}));
 		}).then(({response, responseText}) => {
+			if (!isLatest()) {
+				return;
+			}
 			const result = this.parseUnsplashResponse(
 				response.status,
 				response.statusText,
@@ -127,6 +183,9 @@ Module.register("WallberryTheme", {
 				this.processError(result.error);
 			}
 		}, (error) => {
+			if (!isLatest()) {
+				return;
+			}
 			if (error.name === "TimeoutError") {
 				this.processError({key: "ERROR_TIMEOUT", variables: {seconds: this.requestTimeout / 1000}});
 			} else {
@@ -266,8 +325,10 @@ Module.register("WallberryTheme", {
 		Log.info("Waking WallberryTheme...");
 		this.suspended = false;
 		clearTimeout(this.fetchTimer);
-		if (this.config.newPhotoOnResume) {
-			this.fetchPhoto();
+		const requested = this.requestedSource;
+		this.requestedSource = null;
+		if (requested !== null || this.config.newPhotoOnResume) {
+			this.fetchPhoto(requested ?? undefined);
 			return;
 		}
 
