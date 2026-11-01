@@ -1,0 +1,6 @@
+{
+	"ERROR_NO_FOLDER": "WB-folder hat keinen Ordner, aus dem es Fotos zeigen kann: Seine Option folder fehlt in config/config.js.",
+	"ERROR_FOLDER_MISSING": "WB-folder findet den Ordner {folder} nicht.",
+	"ERROR_FOLDER_UNREADABLE": "WB-folder kann den Ordner {folder} nicht lesen.",
+	"ERROR_FOLDER_EMPTY": "Der Ordner {folder} enthält keine Fotos (.jpg, .jpeg, .png oder .webp)."
+}

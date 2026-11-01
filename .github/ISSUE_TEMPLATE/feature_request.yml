@@ -10,6 +10,7 @@ body:
         - WallberryTheme (background photo)
         - WB-clock
         - WB-weather
+        - WB-folder
         - Not sure
     validations:
       required: true

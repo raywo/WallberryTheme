@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A MagicMirror² module (`WallberryTheme`) plus two companion modules
-(`WB-clock`, `WB-weather`) living in subfolders. Users clone the repo into
-`MagicMirror/modules/` and reference the companions as
-`WallberryTheme/WB-clock` and `WallberryTheme/WB-weather`.
+A MagicMirror² module (`WallberryTheme`) plus three companion modules
+(`WB-clock`, `WB-weather`, `WB-folder`) living in subfolders. Users clone
+the repo into `MagicMirror/modules/` and reference the companions as
+`WallberryTheme/WB-clock`, `WallberryTheme/WB-weather` and
+`WallberryTheme/WB-folder`.
 
 This repository is a fork of `delightedCrow/WallberryTheme`, which is no
 longer maintained; this fork carries the development on.
@@ -90,6 +91,23 @@ to register their own filters (`translate`, `dayLabel`, `precipIcons`).
   for that canvas read to work.
 - Functions passed into the template (`setBackgroundTint`, `getFadeHeight`)
   are called from within the `.njk` and touch the DOM directly.
+
+### WB-folder
+
+A photo source that uses the notification contract like any other
+module; keep it a source a third party could have written:
+
+- Do not let it call into WallberryTheme or WallberryTheme into it.
+- `node_helper.js` reads `folder` only from the server-side config,
+  never from a socket message, and serves only names in the folder's
+  current listing (`photoFolder.js`).
+- MagicMirror² names a helper after the last part of the module's path,
+  so `getServerModuleConfig()` finds nothing for
+  `WallberryTheme/WB-folder`; `findModuleConfig()` looks it up instead.
+- Socket notifications reach every browser that shows the mirror; the
+  browser side ignores answers whose `requestId` is not its own.
+- Comments starting with "Every source" are for readers who copy it as a
+  template; keep them true when changing the code.
 
 ### WB-weather
 
