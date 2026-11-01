@@ -1,9 +1,15 @@
+/* Font sizes, spacing and widths follow --wb-font-size, the base size
+ * that users set in custom.css. Each value is written as its pixel size at
+ * the 27px default over 27, so the defaults stay exact. Every var() keeps
+ * the 27px fallback, which WallberryTheme also uses: the module may run
+ * without it, and nothing defines the variable by default. */
+
 /* The forecast keeps its columns in one row; the current weather takes the
  * space left of it. Errors and the loading text stay stacked. */
 .WB-weather .module-content .weather--loaded {
   display: flex;
   align-items: flex-start;
-  gap: 40px;
+  gap: calc(var(--wb-font-size, 27px) * 40 / 27);
 }
 
 .weather__current {
@@ -11,33 +17,33 @@
   flex: 1 1 auto; }
   .weather__current .current__temperature {
     white-space: nowrap;
-    font-size: 72px;
-    padding-bottom: 15px; }
+    font-size: calc(var(--wb-font-size, 27px) * 72 / 27);
+    padding-bottom: calc(var(--wb-font-size, 27px) * 15 / 27); }
     .weather__current .current__temperature i {
-      font-size: 60px; }
+      font-size: calc(var(--wb-font-size, 27px) * 60 / 27); }
     .weather__current .current__temperature .wi-current {
-      padding-left: 10px; }
+      padding-left: calc(var(--wb-font-size, 27px) * 10 / 27); }
   .weather__current .weather__description {
-    font-size: 28px; }
+    font-size: calc(var(--wb-font-size, 27px) * 28 / 27); }
 
 .weather__weeklyforecast {
   display: flex;
   flex: 0 0 auto;
-  gap: 40px; }
+  gap: calc(var(--wb-font-size, 27px) * 40 / 27); }
   .weather__weeklyforecast .forecast {
     text-align: center;
-    font-size: 22px;
+    font-size: calc(var(--wb-font-size, 27px) * 22 / 27);
     white-space: nowrap; }
     .weather__weeklyforecast .forecast .forecast__icon {
-      font-size: 40px;
-      margin: 10px 0px; }
+      font-size: calc(var(--wb-font-size, 27px) * 40 / 27);
+      margin: calc(var(--wb-font-size, 27px) * 10 / 27) 0; }
     .weather__weeklyforecast .forecast .forecast__day {
       text-transform: uppercase;
-      font-size: 28px; }
+      font-size: calc(var(--wb-font-size, 27px) * 28 / 27); }
     .weather__weeklyforecast .forecast .forecast__rainchance i {
       position: relative;
-      padding-right: 5px;
-      top: 2px; }
+      padding-right: calc(var(--wb-font-size, 27px) * 5 / 27);
+      top: calc(var(--wb-font-size, 27px) * 2 / 27); }
     .weather__weeklyforecast .forecast .forecast__highlow {
       position: relative;
-      top: -7px; }
+      top: calc(var(--wb-font-size, 27px) * -7 / 27); }

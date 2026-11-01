@@ -73,6 +73,7 @@ Compared with the original's last release, 3.1.0, this fork changes the followin
 
 - WB-clock shows the date in the word order of your `language`, e.g. "Montag, 26. Oktober" for German.
 - The Rubik font covers characters beyond basic Latin, such as in "Łódź" or "Plzeň".
+- All text of the three modules scales with one CSS variable, [`--wb-font-size`](#text-size).
 
 ## Required API keys
 
@@ -236,11 +237,25 @@ Every notification costs an Unsplash request, on top of the photo changes of `up
 
 MMM-pages also sends `NEW_PAGE` when it starts. If that arrives after WallberryTheme's first photo request, this config fetches a second photo at startup, which costs one more request.
 
+## Text size
+
+All text of WallberryTheme, WB-clock and WB-weather scales with one CSS variable, `--wb-font-size`. It sets the theme's base size, 27px by default, and every other size and the spacing between texts keep their proportion to it: the clock's time, 72px by default, stays 72/27 of the base size. To make the text larger, e.g. for a mirror read from further away, set the variable in `MagicMirror/config/custom.css`:
+
+```css
+:root {
+  --wb-font-size: 32px;
+}
+```
+
+Larger text needs more room. With WB-weather's `classic-wallberry` template, fewer forecast days fit in one row next to the current weather; lower `daysToForecast` if the forecast runs off the screen. The spacing between texts grows with them; the margin around the screen keeps its size.
+
+WB-clock and WB-weather follow the variable also without WallberryTheme. Text of other modules that sets no size of its own takes the base size as well; text with MagicMirror's size classes, such as `small` or `large`, follows MagicMirror's `--font-size` instead, which in turn leaves the three modules' sizes alone.
+
 ## Text on coloured backgrounds
 
 WallberryTheme gives all text on the mirror a dark shadow (`text-shadow: -1px 2px 2px rgba(0, 0, 0, 0.6)` on `body`), so that white text stays legible on the photo. A text shadow is inherited, so it reaches the text of every other module as well. Text that sits on a coloured background of its own, such as a badge or a line number, does not need the shadow and shows it as a dark, smeared edge – most visibly on light colours.
 
-The theme cannot tell which text sits on its own background, so you switch the shadow off for these elements yourself. Add a rule to `MagicMirror/css/custom.css` that sets `text-shadow: none` on the element. For the line numbers of [MMM-PublicTransportHub](https://github.com/KristjanESPERANTO/MMM-PublicTransportHub):
+The theme cannot tell which text sits on its own background, so you switch the shadow off for these elements yourself. Add a rule to `MagicMirror/config/custom.css` that sets `text-shadow: none` on the element. For the line numbers of [MMM-PublicTransportHub](https://github.com/KristjanESPERANTO/MMM-PublicTransportHub):
 
 ```css
 .mmm-pthub-line-sign {

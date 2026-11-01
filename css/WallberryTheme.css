@@ -1,9 +1,18 @@
+/* Font sizes and the spacing around text follow --wb-font-size, the base
+ * size that users set in custom.css. Each value is written as its pixel
+ * size at the 27px default over 27, so the defaults stay exact. Every var()
+ * keeps the 27px fallback: nothing defines the variable by default.
+ * The page margin, the attribution's margin that lines up with it, the
+ * fades and the text shadow keep their pixel sizes: they belong to the
+ * screen and the photo, not to the text. tests/font-sizes.test.js lists
+ * them; a new pixel value goes there or follows the variable. */
+
 body {
   margin: 60px;
   color: #fff;
   font-family: "Rubik", sans-serif;
   font-weight: 400;
-  font-size: 27px;
+  font-size: var(--wb-font-size, 27px);
   text-shadow: -1px 2px 2px rgba(0, 0, 0, 0.6);
   line-height: 1.5em;
   -webkit-font-smoothing: antialiased;
@@ -53,30 +62,30 @@ body {
 	bottom: 0;
 	right: 0;
 	margin-right: 60px;
-	font-size: 16px;
+	font-size: calc(var(--wb-font-size, 27px) * 16 / 27);
 	z-index: 10;
 }
 
 .wb-unsplash-bg-error {
 	position: absolute;
-	bottom: -5px;
+	bottom: calc(var(--wb-font-size, 27px) * -5 / 27);
 	text-align: center;
   width: 100%;
 	z-index: 10;
 }
 .wb-unsplash-bg-error .wb-error-reason {
   text-transform: uppercase;
-  padding: 0px 5px;
-  margin-bottom: -8px;
+  padding: 0 calc(var(--wb-font-size, 27px) * 5 / 27);
+  margin-bottom: calc(var(--wb-font-size, 27px) * -8 / 27);
 }
 
 .wb-unsplash-bg-error .wb-error-info {
-  font-size: 20px;
+  font-size: calc(var(--wb-font-size, 27px) * 20 / 27);
 }
 
 .wb-unsplash-bg-error .wb-error-icon {
   color: red;
-  padding: 0px 5px;
+  padding: 0 calc(var(--wb-font-size, 27px) * 5 / 27);
 }
 
 /* rubik variable, weights 300-400 - latin, latin-ext

@@ -3,6 +3,8 @@ Part of [WallberryTheme](../README.md), which describes the [installation](../RE
 
 The `WB-weather` module was designed to complement the `WallberryTheme` module and displays the current weather and forecast. It gets the weather from the provider you choose with `providerName`: [Open-Meteo](https://open-meteo.com/), which needs no API key, or [OpenWeatherMap](https://openweathermap.org/).
 
+Its text size follows WallberryTheme's `--wb-font-size`, as [Text size](../README.md#text-size) describes.
+
 ## Using the module
 
 To use this module, add it to the modules array in the `config/config.js` file:

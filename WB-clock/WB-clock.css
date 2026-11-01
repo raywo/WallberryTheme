@@ -1,3 +1,9 @@
+/* Font sizes, spacing and widths follow --wb-font-size, the base size
+ * that users set in custom.css. Each value is written as its pixel size at
+ * the 27px default over 27, so the defaults stay exact. Every var() keeps
+ * the 27px fallback, which WallberryTheme also uses: the module may run
+ * without it, and nothing defines the variable by default. */
+
 .wbclock {
   position: relative;
   text-align: left;
@@ -5,28 +11,28 @@
 
 .wbclock__zones {
   float: left;
-  min-width: 200px;
-  max-width: 250px; }
+  min-width: calc(var(--wb-font-size, 27px) * 200 / 27);
+  max-width: calc(var(--wb-font-size, 27px) * 250 / 27); }
   .wbclock__zones .city {
-    font-size: 27px;
+    font-size: var(--wb-font-size, 27px);
     text-transform: uppercase;
     opacity: .6;
-    margin-bottom: 10px; }
+    margin-bottom: calc(var(--wb-font-size, 27px) * 10 / 27); }
   .wbclock__zones .time {
-    font-size: 27px; }
+    font-size: var(--wb-font-size, 27px); }
   .wbclock__zones .ampm {
-    font-size: 20px;
-    padding-left: 3px; }
+    font-size: calc(var(--wb-font-size, 27px) * 20 / 27);
+    padding-left: calc(var(--wb-font-size, 27px) * 3 / 27); }
 
 .wbclock .local {
-  margin-right: 60px; }
+  margin-right: calc(var(--wb-font-size, 27px) * 60 / 27); }
   .wbclock .local .time {
-    font-size: 72px;
+    font-size: calc(var(--wb-font-size, 27px) * 72 / 27);
     line-height: 1; }
     .wbclock .local .time .ampm {
-      font-size: 43px; }
+      font-size: calc(var(--wb-font-size, 27px) * 43 / 27); }
 
 .wbclock__date {
   position: relative;
-  top: 15px;
+  top: calc(var(--wb-font-size, 27px) * 15 / 27);
   clear: both; }
