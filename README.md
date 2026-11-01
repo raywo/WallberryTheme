@@ -292,6 +292,7 @@ Huge thanks to everyone who has contributed and made the WallberryTheme better!
 - [Jess Coulter (delightedCrow)](https://github.com/delightedCrow) created the WallberryTheme and its companion modules and maintained them up to version 3.1.0. Thank you for this beautiful theme <3
 - Thanks to the magnificent MagicMirror² community, y'all are creative and awesome <3
 - The APCA contrast formula in [colorHelpers.js](colorHelpers.js) is adapted from `contrastAPCA` of [chroma.js](https://github.com/gka/chroma.js) by Gregor Aisch (BSD licence, notice in the file), which implements the [APCA](https://github.com/Myndex/apca-w3) contrast prediction by Myndex.
+- The bundled [Rubik](https://github.com/googlefonts/rubik) font is by The Rubik Project Authors, from [Google Fonts](https://fonts.google.com/specimen/Rubik); the file in [fonts/](fonts) is a subset of it.
 
 ## License
 
@@ -299,6 +300,8 @@ WallberryTheme is released under the [MIT License](LICENSE).
 
 - Copyright (c) 2018 Jess Coulter, for the original WallberryTheme
 - Copyright (c) 2026 Ray Wojciechowski, for the changes in this fork
+
+The Rubik font in [fonts/](fonts) is not covered by the MIT License; it is licensed under the [SIL Open Font License 1.1](fonts/OFL.txt).
 
 ## Changelog
 
