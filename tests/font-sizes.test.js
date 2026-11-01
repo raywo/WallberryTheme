@@ -1,5 +1,6 @@
 const {describe, it} = require("node:test");
 const assert = require("node:assert/strict");
+const {execFileSync} = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -60,9 +61,9 @@ describe("sizes follow --wb-font-size", () => {
 	}
 
 	it("checks every stylesheet in the repository", () => {
-		const css = fs.readdirSync(REPO_ROOT, {recursive: true})
-			.map((name) => name.split(path.sep).join("/"))
-			.filter((name) => name.endsWith(".css") && !name.startsWith("tmp/") && !name.startsWith("node_modules/"));
+		const css = execFileSync("git", ["ls-files", "*.css"], {cwd: REPO_ROOT, encoding: "utf8"})
+			.split("\n")
+			.filter(Boolean);
 		assert.deepEqual(css.sort(), [...STYLESHEETS].sort());
 	});
 });
