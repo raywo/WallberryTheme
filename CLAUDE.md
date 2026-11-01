@@ -72,6 +72,12 @@ to register their own filters (`translate`, `dayLabel`, `precipIcons`).
   source talk only through the interface described at the top of that
   file; do not let the theme reach into the source or add a channel back
   from the theme to the source.
+- Other modules use the same interface by notification (`WALLBERRY_PHOTO`,
+  `WALLBERRY_PHOTO_ERROR`, `WALLBERRY_THEME_STATE`), documented in the
+  README under "Writing a photo source". It is a public contract: a change
+  to a field or its timing breaks every source and is a breaking change.
+- The built-in Unsplash source exists only with an `unsplashAccessKey`;
+  code in the theme must work with `this.unsplash === null`.
 - `node_helper.js` clears Electron's cache on start (`CLEAR_CACHE` →
   `ELECTRON_CACHE_CLEARED`); the theme wakes the source only after that
   reply, so the helper must always answer, also without Electron.

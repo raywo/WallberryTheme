@@ -42,6 +42,10 @@ const CORE_KEYS = [
 	"UPDATE_NOTIFICATION_NEED-RESTART", "ALERT_TITLE", "ALERT_WELCOME"
 ];
 
+// The theme's timer for the message that no source delivered a photo,
+// started with the first awake
+const NO_PHOTO = 60 * 1000;
+
 const PHOTO = {urls: {raw: "https://images.unsplash.com/photo"}, color: "#336699", user: {name: "Jane"}};
 
 /**
@@ -55,10 +59,13 @@ function failToLoad(mod) {
 
 /**
  * Gives the module its Unsplash source the way a running module has it:
- * awake, with the theme's translations stubbed.
+ * awake, with the theme's translations stubbed. The notifications the
+ * module sends are recorded in `mod.notifications`.
  */
 function addSource(mod) {
 	mod.translate = (key, variables) => translateError(EN, {key, variables});
+	mod.notifications = [];
+	mod.sendNotification = (notification, payload) => mod.notifications.push({notification, payload});
 	mod.unsplash = mod.createUnsplashSource();
 	mod.unsplash.state = "awake";
 }
@@ -81,13 +88,15 @@ function failToRestore(mod) {
  * DOM update stubbed out, timers recorded instead of run and a clock
  * that only moves when `clock.now` is set. `answer` stands in for the
  * network: it returns the Response for a request, or throws the error
- * fetch rejects with. `pending` holds the ids of the timers not cleared.
+ * fetch rejects with. `pending` holds the ids of the timers not cleared,
+ * `callbacks` the function of each timer, by its id minus one.
  * `globals` adds or replaces globals, e.g. a `localStorage`. `config`
  * replaces options before the Unsplash source is created, which records
  * the photos it receives in `mod.photos` instead of delivering them.
  */
 function createModule(answer = () => new Response(JSON.stringify(PHOTO)), globals = {}, config = {}) {
 	const timers = [];
+	const callbacks = [];
 	const pending = new Set();
 	const requests = [];
 	const clock = {now: 0};
@@ -98,8 +107,9 @@ function createModule(answer = () => new Response(JSON.stringify(PHOTO)), global
 		},
 		// Records the timeout instead of starting one
 		AbortSignal: {timeout: (milliseconds) => ({timeout: milliseconds})},
-		setTimeout: (_callback, delay) => {
+		setTimeout: (callback, delay) => {
 			timers.push(delay);
+			callbacks.push(callback);
 			pending.add(timers.length);
 			return timers.length;
 		},
@@ -113,10 +123,15 @@ function createModule(answer = () => new Response(JSON.stringify(PHOTO)), global
 	const mod = Object.create(definition);
 	mod.config = {...definition.defaults, unsplashAccessKey: "key", ...config};
 	mod.updateDom = () => {};
+	// MagicMirror² starts every module, then tells them all.
+	mod.start = function() {
+		definition.start.call(this);
+		this.notificationReceived("ALL_MODULES_STARTED");
+	};
 	addSource(mod);
 	mod.photos = [];
 	mod.unsplash.processPhoto = (photo) => mod.photos.push(photo);
-	return {mod, timers, pending, requests, clock, log: scripts.log};
+	return {mod, timers, callbacks, pending, requests, clock, log: scripts.log};
 }
 
 describe("WallberryTheme parseUnsplashResponse", () => {
@@ -542,7 +557,7 @@ describe("WallberryTheme stored photo", () => {
 		assert.equal(data.photoData.authorName, "Alice");
 		assert.equal(data.photoData.needsDimming, true);
 		assert.equal(requests.length, 0);
-		assert.deepEqual(timers, [300 * 1000]);
+		assert.deepEqual(timers, [NO_PHOTO, 300 * 1000]);
 	});
 
 	it("waits for Electron's cache to be cleared before showing the stored photo", () => {
@@ -563,7 +578,7 @@ describe("WallberryTheme stored photo", () => {
 		restore(mod);
 		const restored = mod.img;
 		restored.onload();
-		assert.deepEqual(timers, [0]);
+		assert.deepEqual(timers, [NO_PHOTO, 0]);
 		await mod.unsplash.fetchPhoto(); // what the timer runs
 		assert.equal(requests.length, 1);
 		assert.equal(mod.photoElement, restored);
@@ -686,7 +701,7 @@ describe("WallberryTheme stored photo", () => {
 		mod.start();
 		restore(mod);
 		mod.img.onload();
-		assert.deepEqual(timers, [INTERVAL]);
+		assert.deepEqual(timers, [NO_PHOTO, INTERVAL]);
 	});
 
 	it("does not dim a stored photo with autoDimOn: false", () => {
@@ -733,7 +748,7 @@ describe("WallberryTheme stored photo", () => {
 		await new Promise(setImmediate);
 		mod.img.onload();
 		assert.equal(mod.photoData.authorName, "Jane");
-		assert.deepEqual(timers, [INTERVAL]);
+		assert.deepEqual(timers, [NO_PHOTO, INTERVAL]);
 	});
 
 	it("works as before in a browser without localStorage", () => {
@@ -1147,7 +1162,7 @@ describe("WallberryTheme photo source interface", () => {
 
 	it("keeps Unsplash's request, response, schedule and stored photo out of the theme", () => {
 		const theme = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.js"), "utf8");
-		for (const code of ["api.unsplash.com", "urls.raw", "fetch(", "setTimeout", "localStorage", "newPhotoOnResume:"]) {
+		for (const code of ["api.unsplash.com", "urls.raw", "fetch(", "scheduleFetch", "fetchTimer", "localStorage", "newPhotoOnResume:"]) {
 			assert.equal(theme.includes(code), code === "newPhotoOnResume:", code);
 		}
 	});
@@ -1173,10 +1188,10 @@ describe("WallberryTheme photo source interface", () => {
 		await new Promise(setImmediate);
 		mod.img.onload();
 		assert.equal(mod.photoData.authorName, "Jane");
-		assert.deepEqual(timers, []);
+		assert.deepEqual(timers, [NO_PHOTO]);
 		clock.now = 100 * 1000;
 		mod.resume();
-		assert.deepEqual(timers, [INTERVAL - 100 * 1000]);
+		assert.deepEqual(timers, [NO_PHOTO, INTERVAL - 100 * 1000]);
 	});
 
 	it("starts the source at once with clearCacheOnStart: false", () => {
@@ -1217,9 +1232,11 @@ describe("WallberryTheme photo source interface", () => {
 		assert.equal(mod.photoData.needsDimming, undefined);
 	});
 
-	it("shows the attribution only for a photo with an author", () => {
+	it("shows the attribution only for a photo with an author, naming Unsplash only for its photos", () => {
 		const template = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.njk"), "utf8");
-		assert.match(template, /{% if photoData\.authorName %}\s*<div class="wb-unsplash-bg-attribution">{{ "PHOTO_BY"/);
+		assert.match(template, /{% if photoData\.authorName %}\s*<div class="wb-unsplash-bg-attribution">{{ \("PHOTO_BY" if photoData\.source == "unsplash" else "PHOTO_BY_AUTHOR"\)/);
+		assert.match(EN.PHOTO_BY, /Unsplash/);
+		assert.doesNotMatch(EN.PHOTO_BY_AUTHOR, /Unsplash/);
 	});
 
 	it("delivers the first photo also after an asleep that came before the first awake", () => {
@@ -1228,5 +1245,256 @@ describe("WallberryTheme photo source interface", () => {
 		mod.unsplash.setThemeState("asleep");
 		mod.unsplash.setThemeState("awake");
 		assert.equal(requests.length, 1);
+	});
+});
+
+describe("WallberryTheme photos from other modules", () => {
+	const photo = (source, url, extra = {}) => ({source, url, color: "#123456", author: "Ann", ...extra});
+
+	/**
+	 * Creates the module as MagicMirror² creates it, with `config`, the
+	 * DOM updates counted in `mod.updates` and the tint left out.
+	 */
+	function createSourcesModule(config = {}, globals = {}) {
+		const created = createModule(undefined, globals, {autoDimOn: false, ...config});
+		const {mod} = created;
+		mod.sendSocketNotification = () => {};
+		mod.setBackgroundTint = () => {};
+		mod.updates = 0;
+		mod.updateDom = () => {
+			mod.updates += 1;
+		};
+		return created;
+	}
+
+	/**
+	 * Starts the module of createSourcesModule() and clears Electron's cache.
+	 */
+	function startModule(config = {}, globals = {}) {
+		const created = createSourcesModule(config, globals);
+		created.mod.start();
+		created.mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		return created;
+	}
+
+	const states = (mod) => mod.notifications
+		.filter((sent) => sent.notification === "WALLBERRY_THEME_STATE")
+		.map((sent) => sent.payload.state);
+
+	it("shows the photo of any source, the newest one winning", () => {
+		const {mod} = startModule({unsplashAccessKey: ""});
+		mod.notificationReceived("WALLBERRY_PHOTO", photo("folder", "http://localhost:8080/a.jpg"));
+		const first = mod.img;
+		mod.notificationReceived("WALLBERRY_PHOTO", photo("nas", "http://nas/b.jpg", {author: "Bob"}));
+		first.onload(); // finishes after the newer photo started
+		assert.equal(mod.photoElement, null);
+		mod.img.onload();
+		assert.equal(mod.photoData.source, "nas");
+		assert.equal(mod.photoData.url, "http://nas/b.jpg");
+		assert.equal(mod.photoData.authorName, "Bob");
+		mod.notificationReceived("WALLBERRY_PHOTO", photo("folder", "http://localhost:8080/c.jpg"));
+		mod.img.onload();
+		assert.equal(mod.photoData.source, "folder");
+		assert.equal(mod.photoData.color, "#123456");
+	});
+
+	it("ignores a photo without source or url as strings, with a warning", () => {
+		const {mod, log} = startModule({unsplashAccessKey: ""});
+		const invalid = [undefined, null, "http://nas/a.jpg", {url: "http://nas/a.jpg"}, {source: "nas"},
+			{source: 1, url: "http://nas/a.jpg"}, {source: "nas", url: {href: "http://nas/a.jpg"}}];
+		for (const payload of invalid) {
+			mod.notificationReceived("WALLBERRY_PHOTO", payload);
+		}
+		assert.equal(mod.img, null);
+		assert.equal(log.warn.filter((message) => message.includes("WALLBERRY_PHOTO without source and url")).length, invalid.length);
+	});
+
+	it("leaves out a colour or author that is not a string", () => {
+		const {mod} = startModule({unsplashAccessKey: ""});
+		mod.notificationReceived("WALLBERRY_PHOTO", {source: "nas", url: "http://nas/a.jpg", color: 7, author: {name: "Ann"}});
+		mod.img.onload();
+		assert.equal(mod.photoData.color, undefined);
+		assert.equal(mod.photoData.authorName, undefined);
+	});
+
+	it("sends every state it sends to the internal source to all sources, from the first awake on", () => {
+		const {mod} = createSourcesModule();
+		mod.start();
+		const sent = [];
+		const internal = mod.unsplash.setThemeState.bind(mod.unsplash);
+		mod.unsplash.setThemeState = (state) => {
+			sent.push(state);
+			internal(state);
+		};
+		mod.suspend(); // hidden at the start, before the cache is cleared
+		assert.deepEqual(states(mod), []);
+		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		mod.resume();
+		mod.suspend();
+		assert.deepEqual(sent, ["awake", "asleep", "awake", "asleep"]);
+		assert.deepEqual(states(mod), sent);
+		assert.deepEqual(Object.keys(mod.notifications[0].payload), ["state"]);
+	});
+
+	it("sends the states also without the Unsplash source", () => {
+		const {mod} = createSourcesModule({unsplashAccessKey: "", clearCacheOnStart: false});
+		mod.start();
+		mod.suspend();
+		mod.resume();
+		assert.deepEqual(states(mod), ["awake", "asleep", "awake"]);
+	});
+
+	it("passes WALLBERRY_FETCH_PHOTO only to the internal source and sends it on to nobody", () => {
+		const {mod, requests} = startModule();
+		const before = requests.length;
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		assert.equal(requests.length, before + 1);
+		assert.ok(mod.notifications.every((sent) => sent.notification !== "WALLBERRY_FETCH_PHOTO"));
+	});
+
+	it("shows a source's error while no photo is on screen, until a photo of any source replaces it", () => {
+		const {mod} = startModule({unsplashAccessKey: ""});
+		const updates = mod.updates;
+		mod.notificationReceived("WALLBERRY_PHOTO_ERROR", {source: "nas", message: "The NAS is offline."});
+		const error = mod.getTemplateData().photoError;
+		assert.equal(error.source, "nas");
+		assert.equal(error.message, "The NAS is offline.");
+		assert.equal(mod.updates, updates + 1);
+		mod.notificationReceived("WALLBERRY_PHOTO", photo("folder", "http://localhost:8080/a.jpg"));
+		mod.img.onload();
+		// The template shows a photo before an error.
+		const template = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.njk"), "utf8");
+		assert.ok(template.indexOf("{% if photoElement %}") < template.indexOf("{% elif photoError %}"));
+		assert.equal(mod.getTemplateData().photoElement, mod.img);
+	});
+
+	it("keeps the photo on screen and does not redraw for an error of any source", () => {
+		const {mod} = startModule({unsplashAccessKey: ""});
+		mod.notificationReceived("WALLBERRY_PHOTO", photo("folder", "http://localhost:8080/a.jpg"));
+		mod.img.onload();
+		const updates = mod.updates;
+		mod.notificationReceived("WALLBERRY_PHOTO_ERROR", {source: "nas", message: "The NAS is offline."});
+		mod.receiveError({source: "unsplash", message: "Unsplash Error: 500, Server Error"});
+		assert.equal(mod.updates, updates);
+		assert.equal(mod.getTemplateData().photoData.source, "folder");
+	});
+
+	it("ignores an error without source or message as strings, with a warning", () => {
+		const {mod, log} = startModule({unsplashAccessKey: ""});
+		for (const payload of [null, {message: "offline"}, {source: "nas"}, {source: "nas", message: 404}]) {
+			mod.notificationReceived("WALLBERRY_PHOTO_ERROR", payload);
+		}
+		assert.equal(mod.photoError, null);
+		assert.equal(log.warn.filter((message) => message.includes("WALLBERRY_PHOTO_ERROR without source and message")).length, 4);
+	});
+
+	it("runs no Unsplash source without an unsplashAccessKey: no request, no stored photo", () => {
+		for (const unsplashAccessKey of ["", "  ", undefined]) {
+			const storage = new FakeStorage();
+			storage.setItem("WallberryTheme.photo", JSON.stringify({settings: "[]", photo: {url: "https://images.unsplash.com/stored", authorName: "Alice"}, due: 0}));
+			const {mod, requests} = startModule({unsplashAccessKey}, {localStorage: storage});
+			mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+			mod.resume();
+			assert.equal(mod.unsplash, null, unsplashAccessKey);
+			assert.equal(requests.length, 0, unsplashAccessKey);
+			assert.equal(mod.img, null, unsplashAccessKey);
+			assert.ok(storage.getItem("WallberryTheme.photo") !== null, unsplashAccessKey);
+		}
+	});
+
+	it("says after 60 seconds that no source delivered a photo, until the first photo replaces it", () => {
+		const {mod, timers, callbacks} = startModule({unsplashAccessKey: ""});
+		assert.deepEqual(timers, [NO_PHOTO]);
+		const updates = mod.updates;
+		callbacks[0]();
+		assert.equal(mod.getTemplateData().photoError.message, EN.ERROR_NO_PHOTO);
+		assert.equal(mod.updates, updates + 1);
+		mod.notificationReceived("WALLBERRY_PHOTO", photo("folder", "http://localhost:8080/a.jpg"));
+		mod.img.onload();
+		assert.equal(mod.getTemplateData().photoElement, mod.img);
+	});
+
+	it("names the Unsplash key and photo source modules in the message, in English and German", () => {
+		const DE = readTranslation("translations/de.json");
+		for (const text of [EN.ERROR_NO_PHOTO, DE.ERROR_NO_PHOTO]) {
+			assert.match(text, /unsplashAccessKey/);
+		}
+		assert.match(EN.ERROR_NO_PHOTO, /No photo source/);
+		assert.match(DE.ERROR_NO_PHOTO, /Keine Fotoquelle/);
+	});
+
+	it("says nothing after 60 seconds when a photo has loaded", () => {
+		const {mod, callbacks} = startModule({unsplashAccessKey: ""});
+		mod.notificationReceived("WALLBERRY_PHOTO", photo("folder", "http://localhost:8080/a.jpg"));
+		mod.img.onload();
+		callbacks[0]();
+		assert.equal(mod.photoError, null);
+	});
+
+	it("says after 60 seconds that no source delivered a photo when the only photo fails to load", () => {
+		const {mod, callbacks} = startModule({unsplashAccessKey: ""});
+		mod.notificationReceived("WALLBERRY_PHOTO", photo("folder", "/photos/a.jpg"));
+		failToLoad(mod);
+		callbacks[0]();
+		assert.equal(mod.getTemplateData().photoError.message, EN.ERROR_NO_PHOTO);
+	});
+
+	it("keeps a source's error after 60 seconds instead of the message, as with Unsplash today", () => {
+		const {mod, callbacks} = startModule();
+		mod.receiveError({source: "unsplash", message: EN.ERROR_RATE_LIMIT});
+		callbacks[0]();
+		assert.equal(mod.photoError.message, EN.ERROR_RATE_LIMIT);
+	});
+
+	it("starts the 60 seconds with the first awake, after Electron's cache is cleared", () => {
+		const {mod, timers} = createSourcesModule({unsplashAccessKey: ""});
+		mod.start();
+		assert.deepEqual(timers, []);
+		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		assert.deepEqual(timers, [NO_PHOTO]);
+	});
+
+	it("sends no second awake when another browser's cache clearing is answered", () => {
+		// The helper answers every browser at once, e.g. in server-only
+		// mode with a second browser showing the mirror.
+		const {mod, timers} = startModule({unsplashAccessKey: ""});
+		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		assert.deepEqual(states(mod), ["awake"]);
+		assert.deepEqual(timers, [NO_PHOTO]);
+	});
+});
+
+describe("WallberryTheme start", () => {
+	/**
+	 * Starts the module the way MagicMirror² calls start(), before it
+	 * sends ALL_MODULES_STARTED.
+	 */
+	function startOnly(config) {
+		const {mod, requests} = createModule(undefined, {}, {autoDimOn: false, ...config});
+		mod.sendSocketNotification = () => {};
+		Object.getPrototypeOf(mod).start.call(mod);
+		return {mod, requests};
+	}
+
+	it("wakes the sources only once all modules started, which MagicMirror² sends notifications to", () => {
+		const {mod, requests} = startOnly({clearCacheOnStart: false});
+		assert.deepEqual(mod.notifications, []);
+		assert.equal(requests.length, 0);
+		mod.notificationReceived("ALL_MODULES_STARTED");
+		assert.equal(mod.notifications[0].notification, "WALLBERRY_THEME_STATE");
+		assert.equal(mod.notifications[0].payload.state, "awake");
+		assert.equal(requests.length, 1);
+	});
+
+	it("waits for both Electron's cache and all modules, in either order", () => {
+		for (const order of [["ELECTRON_CACHE_CLEARED", "ALL_MODULES_STARTED"], ["ALL_MODULES_STARTED", "ELECTRON_CACHE_CLEARED"]]) {
+			const {mod, requests} = startOnly({clearCacheOnStart: true});
+			const deliver = (event) => event === "ELECTRON_CACHE_CLEARED" ? mod.socketNotificationReceived(event) : mod.notificationReceived(event);
+			deliver(order[0]);
+			assert.deepEqual(mod.notifications, [], order[0]);
+			deliver(order[1]);
+			assert.equal(mod.notifications.length, 1, order[1]);
+			assert.equal(requests.length, 1, order[1]);
+		}
 	});
 });

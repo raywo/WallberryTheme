@@ -13,7 +13,10 @@
  *
  * There is no channel back: the source does not learn whether its photo
  * loaded or what auto-dim found. Do not add one here; other sources fill
- * the same interface by notification.
+ * the same interface by notification: WALLBERRY_PHOTO,
+ * WALLBERRY_PHOTO_ERROR and WALLBERRY_THEME_STATE, documented in the
+ * README for authors of a source. The theme creates this source only
+ * with an unsplashAccessKey.
  */
 // biome-ignore lint/correctness/noUnusedVariables: a global for the other scripts MagicMirror² loads
 class WBUnsplashSource {
