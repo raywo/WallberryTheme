@@ -2,7 +2,7 @@
 # WallberryTheme: A MagicMirror² Module
 The `WallberryTheme` module re-themes [MagicMirror²](https://github.com/MagicMirrorOrg/MagicMirror) to look like a beautiful photo-box wall display. It adds a new font, styles, and periodically changing background image pulled from Unsplash.com.
 
-The WallberryTheme also comes packaged with two companion modules for displaying the time (`WB-clock`) and weather (`WB-weather`).
+The WallberryTheme also comes packaged with three companion modules for displaying the time (`WB-clock`) and weather (`WB-weather`), and for showing your own photos from a folder (`WB-folder`).
 
 ## Modules in this repository
 
@@ -11,8 +11,9 @@ The WallberryTheme also comes packaged with two companion modules for displaying
 | `WallberryTheme` | The background photo from Unsplash or from other modules, with fades and auto-dim for readable text | [Configuration options](#configuration-options) below |
 | `WB-clock` | The local time and date, optionally the time in other cities | [WB-clock's README](WB-clock/README.md) |
 | `WB-weather` | The current weather and a forecast of several days | [WB-weather's README](WB-weather/README.md) |
+| `WB-folder` | Nothing itself: it delivers photos from a folder on the mirror to WallberryTheme | [WB-folder's README](WB-folder/README.md) |
 
-One clone installs all three; [Installation](#installation) and [Updating](#updating) below apply to each of them.
+One clone installs all four; [Installation](#installation) and [Updating](#updating) below apply to each of them.
 
 ## About this fork
 
@@ -35,7 +36,8 @@ Already running the original? See [Switching from the original](#switching-from-
 - **Readable on bright photos:** soft fades behind the top and bottom bar regions and an automatic dimming of bright photos keep white text legible (see below).
 - **WB-clock** shows the local time and date and, optionally, the time in other cities. See [WB-clock's README](WB-clock/README.md).
 - **WB-weather** shows the current weather and a forecast of several days, from [Open-Meteo](https://open-meteo.com/), which needs no API key, or from [OpenWeatherMap](https://openweathermap.org/). You choose how it looks with display templates, and further weather providers can be added by subclassing its `WBProvider` class. See [WB-weather's README](WB-weather/README.md).
-- **English and German:** the texts of WallberryTheme and WB-weather follow the `language` of your MagicMirror config.
+- **WB-folder** shows your own photos from a folder on the mirror as the background, without an API key. See [WB-folder's README](WB-folder/README.md).
+- **English and German:** the texts of WallberryTheme, WB-weather and WB-folder follow the `language` of your MagicMirror config.
 
 ### Options for bright images
 
@@ -70,12 +72,13 @@ Compared with the original's last release, 3.1.0, this fork changes the followin
 - The photo attribution, the loading message and the error messages are available in German.
 - Other modules can ask for a new photo, optionally with their own search queries or collections, with the notification [`WALLBERRY_FETCH_PHOTO`](#changing-the-photo-from-another-module).
 - Other modules can deliver photos, and the Unsplash key is optional when they do, see [Photo sources](#photo-sources).
+- The new companion module [WB-folder](WB-folder/README.md) shows your own photos from a folder on the mirror.
 
 **Clock and font**
 
 - WB-clock shows the date in the word order of your `language`, e.g. "Montag, 26. Oktober" for German.
 - The Rubik font covers characters beyond basic Latin, such as in "Łódź" or "Plzeň".
-- All text of the three modules scales with one CSS variable, [`--wb-font-size`](#text-size).
+- All text of WallberryTheme, WB-clock and WB-weather scales with one CSS variable, [`--wb-font-size`](#text-size).
 
 ## Required API keys
 
@@ -127,7 +130,7 @@ If you installed the original from delightedCrow/WallberryTheme, you switch to t
 
 ## Configuration
 
-The following example configures all three modules; WB-clock and WB-weather are optional. Paste it into the `modules` array of your `config/config.js`:
+The following example configures WallberryTheme, WB-clock and WB-weather; WB-clock and WB-weather are optional. To show your own photos, add [WB-folder](WB-folder/README.md#using-the-module) as its README describes. Paste the example into the `modules` array of your `config/config.js`:
 
 ```javascript
 // Base WallberryTheme adds new font, styles, and a rotating background image pulled from Unsplash.com
@@ -166,7 +169,7 @@ The following example configures all three modules; WB-clock and WB-weather are 
 
 ### Configuration options
 
-The following properties of `WallberryTheme` can be configured. For more information on how to configure the [WB-clock](WB-clock/README.md) and [WB-weather](WB-weather/README.md) modules see their individual README files.
+The following properties of `WallberryTheme` can be configured. For more information on how to configure the [WB-clock](WB-clock/README.md), [WB-weather](WB-weather/README.md) and [WB-folder](WB-folder/README.md) modules see their individual README files.
 
 `backgroundOpacity`, `brightImageOpacity`, `autoDimOn`, `addBackgroundFade` and `clearCacheOnStart` apply to the photos of every [photo source](#photo-sources); all other options apply to photos from Unsplash only.
 
@@ -245,7 +248,7 @@ MMM-pages also sends `NEW_PAGE` when it starts. If that arrives after WallberryT
 
 ### Photo sources
 
-WallberryTheme shows the photos that its photo sources deliver. Its built-in source fetches photos from Unsplash and runs only when `unsplashAccessKey` is set. Any other MagicMirror module can be a photo source as well and deliver photos from a folder, a NAS or a photo service. Install and configure such a module as its README describes; WallberryTheme needs no option for it. To show only the photos of other modules, leave out `unsplashAccessKey`.
+WallberryTheme shows the photos that its photo sources deliver. Its built-in source fetches photos from Unsplash and runs only when `unsplashAccessKey` is set. [WB-folder](WB-folder/README.md), which comes with WallberryTheme, shows your own photos from a folder on the mirror. Any other MagicMirror module can be a photo source as well and deliver photos from a NAS or a photo service. Install and configure such a module as its README describes; WallberryTheme needs no option for it. To show only the photos of other modules, leave out `unsplashAccessKey`.
 
 - **The newest photo wins,** whichever source delivered it. Sources do not coordinate their timing: with several sources, each changes the photo on its own schedule, and photos that two sources deliver at about the same time replace each other within seconds.
 - **Attribution:** a photo shows "Photo by" and its author if its source names one; "on Unsplash" only for photos from Unsplash.
@@ -267,7 +270,7 @@ All text of WallberryTheme, WB-clock and WB-weather scales with one CSS variable
 
 Larger text needs more room. With WB-weather's `classic-wallberry` template, fewer forecast days fit in one row next to the current weather; lower `daysToForecast` if the forecast runs off the screen. The spacing between texts grows with them; the margin around the screen keeps its size.
 
-WB-clock and WB-weather follow the variable also without WallberryTheme. Text of other modules that sets no size of its own takes the base size as well; text with MagicMirror's size classes, such as `small` or `large`, follows MagicMirror's `--font-size` instead, which in turn leaves the three modules' sizes alone.
+WB-clock and WB-weather follow the variable also without WallberryTheme. Text of other modules that sets no size of its own takes the base size as well; text with MagicMirror's size classes, such as `small` or `large`, follows MagicMirror's `--font-size` instead, which in turn leaves the sizes of WallberryTheme, WB-clock and WB-weather alone.
 
 ## Text on coloured backgrounds
 
@@ -291,7 +294,7 @@ Text elsewhere on the mirror keeps its shadow. For another module, use the class
 
 ## Writing a photo source
 
-A photo source is a MagicMirror module that delivers photos to WallberryTheme by notification; WallberryTheme does not need to know it. WallberryTheme owns the notifications below: a change to a field or to their timing breaks every source and is marked **Breaking** in the [Changelog](CHANGELOG.md). Send and receive them on your module's browser side, with `this.sendNotification()` and `notificationReceived()`; a `node_helper` cannot send them itself.
+A photo source is a MagicMirror module that delivers photos to WallberryTheme by notification; WallberryTheme does not need to know it. [WB-folder](WB-folder/README.md) is a complete example to start from: its comments starting with "Every source" mark what each source has to do. WallberryTheme owns the notifications below: a change to a field or to their timing breaks every source and is marked **Breaking** in the [Changelog](CHANGELOG.md). Send and receive them on your module's browser side, with `this.sendNotification()` and `notificationReceived()`; a `node_helper` cannot send them itself.
 
 | Notification            | From – to                       | Payload
 | ------------------------|---------------------------------| ----------------

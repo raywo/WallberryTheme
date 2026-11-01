@@ -1,5 +1,5 @@
 # Module: WB-weather
-Part of [WallberryTheme](../README.md), which describes the [installation](../README.md#installation) and [updating](../README.md#updating) of all three modules.
+Part of [WallberryTheme](../README.md), which describes the [installation](../README.md#installation) and [updating](../README.md#updating) of all its modules.
 
 The `WB-weather` module was designed to complement the `WallberryTheme` module and displays the current weather and forecast. It gets the weather from the provider you choose with `providerName`: [Open-Meteo](https://open-meteo.com/), which needs no API key, or [OpenWeatherMap](https://openweathermap.org/).
 

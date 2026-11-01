@@ -26,6 +26,7 @@ body:
         - WallberryTheme
         - WB-clock
         - WB-weather
+        - WB-folder
         - Repository / tooling
     validations:
       required: true
