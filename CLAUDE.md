@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A MagicMirror² module (`WallberryTheme`) plus two companion modules
-(`WB-clock`, `WB-weather`) living in subfolders. Users clone the repo into
-`MagicMirror/modules/` and reference the companions as
-`WallberryTheme/WB-clock` and `WallberryTheme/WB-weather`.
+A MagicMirror² module (`WallberryTheme`) plus three companion modules
+(`WB-clock`, `WB-weather`, `WB-folder`) living in subfolders. Users clone
+the repo into `MagicMirror/modules/` and reference the companions as
+`WallberryTheme/WB-clock`, `WallberryTheme/WB-weather` and
+`WallberryTheme/WB-folder`.
 
 This repository is a fork of `delightedCrow/WallberryTheme`, which is no
 longer maintained; this fork carries the development on.
@@ -64,10 +65,22 @@ to register their own filters (`translate`, `dayLabel`, `precipIcons`).
 
 ### WallberryTheme (root)
 
-- Fetches a random Unsplash photo with `fetch` in the browser, renders it
-  as a `fullscreen_below` background.
+- Shows photos as a `fullscreen_below` background; it fetches and
+  schedules nothing itself.
+- `unsplashSource.js` (`WBUnsplashSource`) decides which photo comes
+  when: the Unsplash request, sizing the image URL, the schedule, the
+  stored photo, `newPhotoOnResume` and `WALLBERRY_FETCH_PHOTO`. Theme and
+  source talk only through the interface described at the top of that
+  file; do not let the theme reach into the source or add a channel back
+  from the theme to the source.
+- Other modules use the same interface by notification (`WALLBERRY_PHOTO`,
+  `WALLBERRY_PHOTO_ERROR`, `WALLBERRY_THEME_STATE`), documented in the
+  README under "Writing a photo source". It is a public contract: a change
+  to a field or its timing breaks every source and is a breaking change.
+- The built-in Unsplash source exists only with an `unsplashAccessKey`;
+  code in the theme must work with `this.unsplash === null`.
 - `node_helper.js` clears Electron's cache on start (`CLEAR_CACHE` →
-  `ELECTRON_CACHE_CLEARED`); the module only fetches a photo after that
+  `ELECTRON_CACHE_CLEARED`); the theme wakes the source only after that
   reply, so the helper must always answer, also without Electron.
 - The background and fade tints come from CSS: `setBackgroundTint()` sets
   Unsplash's colour swatch as `--wb-swatch`, and `css/WallberryTheme.css`
@@ -78,6 +91,23 @@ to register their own filters (`translate`, `dayLabel`, `precipIcons`).
   for that canvas read to work.
 - Functions passed into the template (`setBackgroundTint`, `getFadeHeight`)
   are called from within the `.njk` and touch the DOM directly.
+
+### WB-folder
+
+A photo source that uses the notification contract like any other
+module; keep it a source a third party could have written:
+
+- Do not let it call into WallberryTheme or WallberryTheme into it.
+- `node_helper.js` reads `folder` only from the server-side config,
+  never from a socket message, and serves only names in the folder's
+  current listing (`photoFolder.js`).
+- MagicMirror² names a helper after the last part of the module's path,
+  so `getServerModuleConfig()` finds nothing for
+  `WallberryTheme/WB-folder`; `findModuleConfig()` looks it up instead.
+- Socket notifications reach every browser that shows the mirror; the
+  browser side ignores answers whose `requestId` is not its own.
+- Comments starting with "Every source" are for readers who copy it as a
+  template; keep them true when changing the code.
 
 ### WB-weather
 

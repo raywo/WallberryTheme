@@ -1,5 +1,5 @@
 # Module: WB-clock
-Part of [WallberryTheme](../README.md), which describes the [installation](../README.md#installation) and [updating](../README.md#updating) of all three modules.
+Part of [WallberryTheme](../README.md), which describes the [installation](../README.md#installation) and [updating](../README.md#updating) of all its modules.
 
 The `WB-clock` module is a digital clock designed to complement the `WallberryTheme` module. It displays the local time and date, and can display the local time for as many other locales as you care to configure.
 

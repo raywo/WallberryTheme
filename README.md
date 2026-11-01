@@ -2,17 +2,18 @@
 # WallberryTheme: A MagicMirror² Module
 The `WallberryTheme` module re-themes [MagicMirror²](https://github.com/MagicMirrorOrg/MagicMirror) to look like a beautiful photo-box wall display. It adds a new font, styles, and periodically changing background image pulled from Unsplash.com.
 
-The WallberryTheme also comes packaged with two companion modules for displaying the time (`WB-clock`) and weather (`WB-weather`).
+The WallberryTheme also comes packaged with three companion modules for displaying the time (`WB-clock`) and weather (`WB-weather`), and for showing your own photos from a folder (`WB-folder`).
 
 ## Modules in this repository
 
 | Module | Shows | Documentation |
 |--------|-------|---------------|
-| `WallberryTheme` | The background photo from Unsplash, with fades and auto-dim for readable text | [Configuration options](#configuration-options) below |
+| `WallberryTheme` | The background photo from Unsplash or from other modules, with fades and auto-dim for readable text | [Configuration options](#configuration-options) below |
 | `WB-clock` | The local time and date, optionally the time in other cities | [WB-clock's README](WB-clock/README.md) |
 | `WB-weather` | The current weather and a forecast of several days | [WB-weather's README](WB-weather/README.md) |
+| `WB-folder` | Nothing itself: it delivers photos from a folder on the mirror to WallberryTheme | [WB-folder's README](WB-folder/README.md) |
 
-One clone installs all three; [Installation](#installation) and [Updating](#updating) below apply to each of them.
+One clone installs all four; [Installation](#installation) and [Updating](#updating) below apply to each of them.
 
 ## About this fork
 
@@ -31,10 +32,12 @@ Already running the original? See [Switching from the original](#switching-from-
 ## Features
 
 - **A new photo every few minutes:** WallberryTheme shows a random photo from Unsplash as the mirror's background, optionally from your own collections or matching your search queries.
+- **Photos from other modules:** any MagicMirror module can deliver photos to WallberryTheme, e.g. from a folder or a photo service, alongside Unsplash or instead of it. See [Photo sources](#photo-sources).
 - **Readable on bright photos:** soft fades behind the top and bottom bar regions and an automatic dimming of bright photos keep white text legible (see below).
 - **WB-clock** shows the local time and date and, optionally, the time in other cities. See [WB-clock's README](WB-clock/README.md).
 - **WB-weather** shows the current weather and a forecast of several days, from [Open-Meteo](https://open-meteo.com/), which needs no API key, or from [OpenWeatherMap](https://openweathermap.org/). You choose how it looks with display templates, and further weather providers can be added by subclassing its `WBProvider` class. See [WB-weather's README](WB-weather/README.md).
-- **English and German:** the texts of WallberryTheme and WB-weather follow the `language` of your MagicMirror config.
+- **WB-folder** shows your own photos from a folder on the mirror as the background, without an API key. See [WB-folder's README](WB-folder/README.md).
+- **English and German:** the texts of WallberryTheme, WB-weather and WB-folder follow the `language` of your MagicMirror config.
 
 ### Options for bright images
 
@@ -68,16 +71,18 @@ Compared with the original's last release, 3.1.0, this fork changes the followin
 - The photo loads also when Electron is not installed, and the theme keeps changing photos after Unsplash answers with an error, e.g. when the rate limit is exceeded.
 - The photo attribution, the loading message and the error messages are available in German.
 - Other modules can ask for a new photo, optionally with their own search queries or collections, with the notification [`WALLBERRY_FETCH_PHOTO`](#changing-the-photo-from-another-module).
+- Other modules can deliver photos, and the Unsplash key is optional when they do, see [Photo sources](#photo-sources).
+- The new companion module [WB-folder](WB-folder/README.md) shows your own photos from a folder on the mirror.
 
 **Clock and font**
 
 - WB-clock shows the date in the word order of your `language`, e.g. "Montag, 26. Oktober" for German.
 - The Rubik font covers characters beyond basic Latin, such as in "Łódź" or "Plzeň".
-- All text of the three modules scales with one CSS variable, [`--wb-font-size`](#text-size).
+- All text of WallberryTheme, WB-clock and WB-weather scales with one CSS variable, [`--wb-font-size`](#text-size).
 
 ## Required API keys
 
-- A (free) Unsplash API key is required and can be obtained from [Unsplash.com](https://unsplash.com/developers).
+- A (free) Unsplash API key is needed for photos from Unsplash and can be obtained from [Unsplash.com](https://unsplash.com/developers). Without it, WallberryTheme shows only the photos of other modules, see [Photo sources](#photo-sources).
 
 WB-weather needs no API key with its Open-Meteo provider. If you prefer OpenWeatherMap, see [WB-weather's weather providers](WB-weather/README.md#available-weather-providers) for the key it needs.
 
@@ -125,7 +130,7 @@ If you installed the original from delightedCrow/WallberryTheme, you switch to t
 
 ## Configuration
 
-The following example configures all three modules; WB-clock and WB-weather are optional. Paste it into the `modules` array of your `config/config.js`:
+The following example configures WallberryTheme, WB-clock and WB-weather; WB-clock and WB-weather are optional. To show your own photos, add [WB-folder](WB-folder/README.md#using-the-module) as its README describes. Paste the example into the `modules` array of your `config/config.js`:
 
 ```javascript
 // Base WallberryTheme adds new font, styles, and a rotating background image pulled from Unsplash.com
@@ -133,7 +138,7 @@ The following example configures all three modules; WB-clock and WB-weather are 
   module: "WallberryTheme",
   position: "fullscreen_below", // Required Position
   config: {
-    unsplashAccessKey: "Your Unsplash API Key", // REQUIRED
+    unsplashAccessKey: "Your Unsplash API Key", // needed for photos from Unsplash
     collections: "2589108" // optional - leave empty for a random photo
   }
 },
@@ -164,12 +169,14 @@ The following example configures all three modules; WB-clock and WB-weather are 
 
 ### Configuration options
 
-The following properties of `WallberryTheme` can be configured. For more information on how to configure the [WB-clock](WB-clock/README.md) and [WB-weather](WB-weather/README.md) modules see their individual README files.
+The following properties of `WallberryTheme` can be configured. For more information on how to configure the [WB-clock](WB-clock/README.md), [WB-weather](WB-weather/README.md) and [WB-folder](WB-folder/README.md) modules see their individual README files.
+
+`backgroundOpacity`, `brightImageOpacity`, `autoDimOn`, `addBackgroundFade` and `clearCacheOnStart` apply to the photos of every [photo source](#photo-sources); all other options apply to photos from Unsplash only.
 
 
 | Option                      | Type    | Description
 | ----------------------------|---------| ----------------
-| `unsplashAccessKey`         | String  | Your Unsplash API access key. Sign up for free at [https://unsplash.com/developers](https://unsplash.com/developers). Demo accounts are allowed `50 API requests per hour`. <br><br>  This value is **REQUIRED**
+| `unsplashAccessKey`         | String  | Your Unsplash API access key. Sign up for free at [https://unsplash.com/developers](https://unsplash.com/developers). Demo accounts are allowed `50 API requests per hour`. Without a key, WallberryTheme requests nothing from Unsplash and shows only the photos of other [photo sources](#photo-sources). <br><br> **Default value:** `""` (no photos from Unsplash)
 | `collections`               | String  | A comma-separated list of Unsplash collection IDs that photos should be pulled from. Collection IDs can be found in the URL of the collection, shown in the highlighted part of this screenshot: <img src="images/unsplash-collection-id.png">  <br><br> **Example:** `"1538150,162213"` <br> **Default value:** `""` (no collection, theme will use a random Unsplash photo)
 | `queries`                   | Array   | A list of queries to search for on Unsplash. When multiple queries are specified, one gets randomly picked every refresh. <br><br> **Example:** `["cars", "new york", "black cat"]` <br> **Default value:** `[]`
 | `updateInterval`            | Number  | How often the photo should change (Milliseconds). Each change costs an Unsplash request: below `72000` (72 seconds) a demo key runs out of requests within the hour, see [Unsplash's rate limit](#unsplashs-rate-limit). The interval runs on across restarts: after a restart or reload, WallberryTheme shows the photo it showed before and costs a request only once that photo's change is due. <br><br> **Default value:** `300000` (5 minutes)
@@ -177,7 +184,7 @@ The following properties of `WallberryTheme` can be configured. For more informa
 | `orientation`               | String  | What screen orientation photos should be optimized for. <br><br> **Possible values:** `"portrait"`, `"landscape"`, or `"squarish"` <br> **Default value:** `"portrait"`
 | `backgroundOpacity`         | Number  | Controls the darkness of the background photo. <br><br> **Possible values:** Any number from `0.0` (black screen) to `1` (fully bright image)<br> **E.G.**: `0.5` would be the background at half brightness<br> **Default value:** `1`
 | `brightImageOpacity`        | Number  | Controls the darkness of photos that `autoDimOn` dims. Only used when `autoDimOn` is `true`. <br><br> **Possible values:** Any number from `0.0` (black screen) to `1` (fully bright image)<br> **Default value:** `0.85`
-| `autoDimOn`                 | Boolean | Darkens a photo to the value set by `brightImageOpacity` when white text would be hard to read behind the top bar or bottom bar region. The check measures the photo as it looks under the fades of `addBackgroundFade`, or the photo alone without them, and dims when the [APCA](https://readtech.org/ARC/) contrast of white text against the brightest tenth of either area falls below Lc 75, the minimum for body text. <br><br> **Possible values:** `true` (on) or `false` (off) <br>**Default value:** `true`
+| `autoDimOn`                 | Boolean | Darkens a photo to the value set by `brightImageOpacity` when white text would be hard to read behind the top bar or bottom bar region. The check measures the photo as it looks under the fades of `addBackgroundFade`, or the photo alone without them, and dims when the [APCA](https://readtech.org/ARC/) contrast of white text against the brightest tenth of either area falls below Lc 75, the minimum for body text. A photo whose server does not let the browser read its pixels (it sends no `Access-Control-Allow-Origin` header), or whose check fails, is shown at `backgroundOpacity` without the check, and the browser console logs a warning. <br><br> **Possible values:** `true` (on) or `false` (off) <br>**Default value:** `true`
 | `addBackgroundFade`         | Array   | Adds darker gradient backgrounds to the top bar region and/or bottom bar regions of MagicMirror (helps with readability for bright or busy background images). <br><br> **Possible values:** `"top"` will add a gradient background to the top bar region, `"bottom"` will add a gradient background to the bottom bar region. Set to an empty list to remove all gradients.  <br>**Default value:** `["top", "bottom"]`
 | `clearCacheOnStart`         | Boolean | Clears Electron's cache on MagicMirror startup, preventing an issue where Electron would sometimes encounter a CORS error when trying to load a previously cached background image ([see this issue here for details](https://github.com/delightedCrow/WallberryTheme/issues/8)). Has no effect when MagicMirror runs without Electron, e.g. in server-only mode or when Electron is not installed.  <br><br> **Possible values:** `true` (on) or `false` (off) <br>**Default value:** `true`
 | `imageHeight`               | String or Number  | Use "auto" to use your screen's height, or specify a hardcoded width in pixels. <br><br> **Default value:** `"auto"`
@@ -212,6 +219,8 @@ The payload is optional and chooses the photo for this one fetch:
 
 A payload with `queries` or `collections` replaces both options for this fetch, so configured collections do not narrow a page's search; a key it leaves out is empty. Without a payload, or with neither key, the configured `queries` and `collections` apply. The fetch after `updateInterval` uses the configured values again.
 
+Other [photo sources](#photo-sources) receive the notification as well and decide themselves whether it changes their photo. Without `unsplashAccessKey`, WallberryTheme ignores it.
+
 Every notification costs an Unsplash request, on top of the photo changes of `updateInterval`. A demo key allows 50 requests per hour: a mirror that switches pages every minute and asks for a photo on each switch runs out of requests within the hour, and its photo then stops changing. See [Unsplash's rate limit](#unsplashs-rate-limit).
 
 [MMM-pages](https://github.com/edward-shen/MMM-pages) does not send this notification itself, but announces each page change with `NEW_PAGE` and the page's index. [MMM-NotificationTrigger](https://github.com/MMRIZE/MMM-NotificationTrigger) can turn that into a photo request; this config shows sports photos on the second page and the configured photos on all others:
@@ -237,6 +246,18 @@ Every notification costs an Unsplash request, on top of the photo changes of `up
 
 MMM-pages also sends `NEW_PAGE` when it starts. If that arrives after WallberryTheme's first photo request, this config fetches a second photo at startup, which costs one more request.
 
+### Photo sources
+
+WallberryTheme shows the photos that its photo sources deliver. Its built-in source fetches photos from Unsplash and runs only when `unsplashAccessKey` is set. [WB-folder](WB-folder/README.md), which comes with WallberryTheme, shows your own photos from a folder on the mirror. Any other MagicMirror module can be a photo source as well and deliver photos from a NAS or a photo service. Install and configure such a module as its README describes; WallberryTheme needs no option for it. To show only the photos of other modules, leave out `unsplashAccessKey`.
+
+- **The newest photo wins,** whichever source delivered it. Sources do not coordinate their timing: with several sources, each changes the photo on its own schedule, and photos that two sources deliver at about the same time replace each other within seconds.
+- **Attribution:** a photo shows "Photo by" and its author if its source names one; "on Unsplash" only for photos from Unsplash.
+- **Auto-dim:** `autoDimOn` checks a photo only if the browser may read its pixels, that is if the photo's server sends an `Access-Control-Allow-Origin` header or the photo comes from MagicMirror's own server. Other photos are shown at `backgroundOpacity`, and the browser console logs a warning.
+- **Errors:** WallberryTheme shows a source's error message only while no photo is on screen; the next photo of any source replaces it.
+- **No photo:** if no source has delivered a photo that loads 60 seconds after the start, WallberryTheme shows a message that it needs `unsplashAccessKey` or a module that delivers photos. The first photo replaces it.
+
+To write a photo source yourself, see [Writing a photo source](#writing-a-photo-source).
+
 ## Text size
 
 All text of WallberryTheme, WB-clock and WB-weather scales with one CSS variable, `--wb-font-size`. It sets the theme's base size, 27px by default, and every other size and the spacing between texts keep their proportion to it: the clock's time, 72px by default, stays 72/27 of the base size. To make the text larger, e.g. for a mirror read from further away, set the variable in `MagicMirror/config/custom.css`:
@@ -249,7 +270,7 @@ All text of WallberryTheme, WB-clock and WB-weather scales with one CSS variable
 
 Larger text needs more room. With WB-weather's `classic-wallberry` template, fewer forecast days fit in one row next to the current weather; lower `daysToForecast` if the forecast runs off the screen. The spacing between texts grows with them; the margin around the screen keeps its size.
 
-WB-clock and WB-weather follow the variable also without WallberryTheme. Text of other modules that sets no size of its own takes the base size as well; text with MagicMirror's size classes, such as `small` or `large`, follows MagicMirror's `--font-size` instead, which in turn leaves the three modules' sizes alone.
+WB-clock and WB-weather follow the variable also without WallberryTheme. Text of other modules that sets no size of its own takes the base size as well; text with MagicMirror's size classes, such as `small` or `large`, follows MagicMirror's `--font-size` instead, which in turn leaves the sizes of WallberryTheme, WB-clock and WB-weather alone.
 
 ## Text on coloured backgrounds
 
@@ -270,6 +291,43 @@ Text elsewhere on the mirror keeps its shadow. For another module, use the class
   text-shadow: none;
 }
 ```
+
+## Writing a photo source
+
+A photo source is a MagicMirror module that delivers photos to WallberryTheme by notification; WallberryTheme does not need to know it. [WB-folder](WB-folder/README.md) is a complete example to start from: its comments starting with "Every source" mark what each source has to do. WallberryTheme owns the notifications below: a change to a field or to their timing breaks every source and is marked **Breaking** in the [Changelog](CHANGELOG.md). Send and receive them on your module's browser side, with `this.sendNotification()` and `notificationReceived()`; a `node_helper` cannot send them itself.
+
+| Notification            | From – to                       | Payload
+| ------------------------|---------------------------------| ----------------
+| `WALLBERRY_PHOTO`       | your source – WallberryTheme    | `{source, url, color, author, needsDimming}`: a photo to show, see below
+| `WALLBERRY_PHOTO_ERROR` | your source – WallberryTheme    | `{source, message}`: an error to show while no photo is on screen
+| `WALLBERRY_THEME_STATE` | WallberryTheme – all modules    | `{state}`: `"awake"` or `"asleep"`
+| `WALLBERRY_FETCH_PHOTO` | any module – all modules        | Optional, chosen by the sender: a request for a new photo, see [Changing the photo from another module](#changing-the-photo-from-another-module)
+
+**`WALLBERRY_PHOTO`** – WallberryTheme loads the photo and shows it once its image has loaded, in place of the photo on screen. A photo that fails to load is skipped; the photo on screen stays.
+
+| Field          | Type    | Description
+| ---------------|---------| ----------------
+| `source`       | String  | **Required.** The name of your source, e.g. your module's name.
+| `url`          | String  | **Required.** The URL of the image, sized for the screen; WallberryTheme shows it at its natural size.
+| `color`        | String  | A CSS colour of the photo, e.g. `"#336699"`, from which WallberryTheme tints the background and the fades. Without it, the background is black and the fades are neutral dark.
+| `author`       | String  | The photo's author, shown as "Photo by" and the name. Without it, the photo has no attribution.
+| `needsDimming` | Boolean | Whether the photo needs dimming, if your source knows; WallberryTheme then skips its own `autoDimOn` check. Ignored with `autoDimOn: false` and for an image whose pixels the browser may not read. Without it, WallberryTheme checks the image itself.
+
+WallberryTheme ignores a `WALLBERRY_PHOTO` without `source` and `url` as strings, and a `WALLBERRY_PHOTO_ERROR` without `source` and `message` as strings, and logs a warning in the browser console. A `color` or `author` that is not a string counts as left out.
+
+**`WALLBERRY_PHOTO_ERROR`** – `message` is shown as it is, so translate it into the user's `language` yourself. WallberryTheme shows it only while no photo is on screen; the next photo of any source replaces it.
+
+**Startup.** WallberryTheme sends the first `{state: "awake"}` once MagicMirror has started all modules and, with `clearCacheOnStart`, Electron's cache is cleared. Deliver your first photo when it arrives, not before: an image Electron cached on an earlier run may be shown without auto-dim. If WallberryTheme is hidden at the start, `{state: "asleep"}` follows right after the first awake; deliver the first photo anyway, so that it is there when WallberryTheme is shown. If no source delivers a photo that loads within 60 seconds of the first awake, WallberryTheme shows the message that no photo source has delivered a photo; a URL the mirror cannot load counts as no photo.
+
+**Sleep.** WallberryTheme sends `{state: "asleep"}` when it is hidden, e.g. by MMM-pages or a presence sensor, and `{state: "awake"}` when it is shown again. While it is asleep, fetch nothing, so that a hidden mirror does not use up a service's requests. On awake, your source decides whether a new photo is due. A photo delivered while WallberryTheme is asleep is loaded and shown once it is visible again.
+
+**Reload.** A reload of the browser starts WallberryTheme and your module's browser side anew: WallberryTheme shows no photo until your source delivers one after the next first awake, also if your `node_helper` kept running. In server-only mode, each browser that shows the mirror runs its own WallberryTheme and sends its own states.
+
+**No channel back.** Your source learns nothing from WallberryTheme beyond its state: not whether a photo loaded, nor what auto-dim found.
+
+**Auto-dim needs readable pixels.** WallberryTheme loads every image with `crossOrigin`, so that `autoDimOn` can read its pixels. That works only if the image's server sends an `Access-Control-Allow-Origin` header, or if the image comes from MagicMirror's own server, e.g. a file in your module's folder at `/modules/<your module>/…`. Any other image is shown at `backgroundOpacity`, without the check and without your `needsDimming`.
+
+**Timing.** Sources do not coordinate: WallberryTheme shows the newest photo, whichever source sent it, so photos from sources that deliver at the same time replace each other within seconds. `WALLBERRY_FETCH_PHOTO` reaches every source directly from its sender; decide yourself whether it changes your photo.
 
 ## Contributing
 

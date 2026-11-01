@@ -1,7 +1,9 @@
 {% if photoElement %}
 	{{ setBackgroundTint(photoData.color) }}
 
-	<div class="wb-unsplash-bg-attribution">{{ "PHOTO_BY" | translate({author: photoData.authorName}) }}</div>
+	{% if photoData.authorName %}
+		<div class="wb-unsplash-bg-attribution">{{ ("PHOTO_BY" if photoData.source == "unsplash" else "PHOTO_BY_AUTHOR") | translate({author: photoData.authorName}) }}</div>
+	{% endif %}
 	<img src="{{ photoElement.src }}" style="opacity: {{ config.brightImageOpacity if photoData.needsDimming else config.backgroundOpacity }};">
 
 	{% if "top" in config.addBackgroundFade %}
@@ -14,7 +16,7 @@
 {% elif photoError %}
 	<div class="wb-unsplash-bg-error">
 		<div class="wb-error-reason"><i class="wb-error-icon fa fa-exclamation-triangle" aria-hidden="true"></i>{{ "ERROR_TITLE" | translate }}<i class="wb-error-icon fa fa-exclamation-triangle" aria-hidden="true"></i></div>
-		<div class="wb-error-info">{{ photoError.key | translate(photoError.variables) }}</div>
+		<div class="wb-error-info">{{ photoError.message }}</div>
 	</div>
 {% else %}
 	<div class="wb-unsplash-bg-attribution">{{ "LOADING_PHOTO" | translate }}</div>
