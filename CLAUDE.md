@@ -64,10 +64,16 @@ to register their own filters (`translate`, `dayLabel`, `precipIcons`).
 
 ### WallberryTheme (root)
 
-- Fetches a random Unsplash photo with `fetch` in the browser, renders it
-  as a `fullscreen_below` background.
+- Shows photos as a `fullscreen_below` background; it fetches and
+  schedules nothing itself.
+- `unsplashSource.js` (`WBUnsplashSource`) decides which photo comes
+  when: the Unsplash request, sizing the image URL, the schedule, the
+  stored photo, `newPhotoOnResume` and `WALLBERRY_FETCH_PHOTO`. Theme and
+  source talk only through the interface described at the top of that
+  file; do not let the theme reach into the source or add a channel back
+  from the theme to the source.
 - `node_helper.js` clears Electron's cache on start (`CLEAR_CACHE` →
-  `ELECTRON_CACHE_CLEARED`); the module only fetches a photo after that
+  `ELECTRON_CACHE_CLEARED`); the theme wakes the source only after that
   reply, so the helper must always answer, also without Electron.
 - The background and fade tints come from CSS: `setBackgroundTint()` sets
   Unsplash's colour swatch as `--wb-swatch`, and `css/WallberryTheme.css`

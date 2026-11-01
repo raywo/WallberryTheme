@@ -54,19 +54,44 @@ function failToLoad(mod) {
 }
 
 /**
+ * Gives the module its Unsplash source the way a running module has it:
+ * awake, with the theme's translations stubbed.
+ */
+function addSource(mod) {
+	mod.translate = (key, variables) => translateError(EN, {key, variables});
+	mod.unsplash = mod.createUnsplashSource();
+	mod.unsplash.state = "awake";
+}
+
+/**
+ * Loads the image of the stored photo the source checks before
+ * delivering it, or fails both of its attempts.
+ */
+function restore(mod) {
+	mod.unsplash.probe.onload();
+}
+
+function failToRestore(mod) {
+	mod.unsplash.probe.onerror();
+	mod.unsplash.probe.onerror();
+}
+
+/**
  * Creates the WallberryTheme module the way MagicMirror² does, with the
  * DOM update stubbed out, timers recorded instead of run and a clock
  * that only moves when `clock.now` is set. `answer` stands in for the
  * network: it returns the Response for a request, or throws the error
  * fetch rejects with. `pending` holds the ids of the timers not cleared.
- * `globals` adds or replaces globals, e.g. a `localStorage`.
+ * `globals` adds or replaces globals, e.g. a `localStorage`. `config`
+ * replaces options before the Unsplash source is created, which records
+ * the photos it receives in `mod.photos` instead of delivering them.
  */
-function createModule(answer = () => new Response(JSON.stringify(PHOTO)), globals = {}) {
+function createModule(answer = () => new Response(JSON.stringify(PHOTO)), globals = {}, config = {}) {
 	const timers = [];
 	const pending = new Set();
 	const requests = [];
 	const clock = {now: 0};
-	const scripts = loadScripts(["WallberryTheme.js"], {
+	const scripts = loadScripts(["unsplashSource.js", "WallberryTheme.js"], {
 		fetch: async (url, options) => {
 			requests.push({url, options});
 			return answer();
@@ -86,10 +111,11 @@ function createModule(answer = () => new Response(JSON.stringify(PHOTO)), global
 	});
 	const definition = scripts.modules.WallberryTheme;
 	const mod = Object.create(definition);
-	mod.config = {...definition.defaults, unsplashAccessKey: "key"};
+	mod.config = {...definition.defaults, unsplashAccessKey: "key", ...config};
 	mod.updateDom = () => {};
+	addSource(mod);
 	mod.photos = [];
-	mod.processPhoto = (photo) => mod.photos.push(photo);
+	mod.unsplash.processPhoto = (photo) => mod.photos.push(photo);
 	return {mod, timers, pending, requests, clock, log: scripts.log};
 }
 
@@ -97,34 +123,34 @@ describe("WallberryTheme parseUnsplashResponse", () => {
 	const {mod} = createModule();
 
 	it("returns the photo of a successful response", () => {
-		const result = mod.parseUnsplashResponse(200, "OK", JSON.stringify(PHOTO), "49");
+		const result = mod.unsplash.parseUnsplashResponse(200, "OK", JSON.stringify(PHOTO), "49");
 		// The photo comes from the scripts' context, so compare its content
 		assert.equal(JSON.stringify(result.photo), JSON.stringify(PHOTO));
 	});
 
 	it("returns Unsplash's error text of a JSON error response", () => {
-		const result = mod.parseUnsplashResponse(401, "Unauthorized", JSON.stringify({errors: ["OAuth error: The access token is invalid"]}), null);
+		const result = mod.unsplash.parseUnsplashResponse(401, "Unauthorized", JSON.stringify({errors: ["OAuth error: The access token is invalid"]}), null);
 		assert.equal(translateError(EN, result.error), "The Unsplash API returned the error \"OAuth error: The access token is invalid\"");
 	});
 
 	it("names the rate limit for a plain-text 403 response", () => {
-		const result = mod.parseUnsplashResponse(403, "Forbidden", "Rate Limit Exceeded", null);
+		const result = mod.unsplash.parseUnsplashResponse(403, "Forbidden", "Rate Limit Exceeded", null);
 		assert.equal(result.error.key, "ERROR_RATE_LIMIT");
 	});
 
 	it("names the rate limit when no requests remain", () => {
-		const result = mod.parseUnsplashResponse(403, "Forbidden", "", "0");
+		const result = mod.unsplash.parseUnsplashResponse(403, "Forbidden", "", "0");
 		assert.equal(result.error.key, "ERROR_RATE_LIMIT");
 	});
 
 	it("returns a status error for a body that is not JSON", () => {
-		const result = mod.parseUnsplashResponse(502, "Bad Gateway", "<html>Bad Gateway</html>", null);
+		const result = mod.unsplash.parseUnsplashResponse(502, "Bad Gateway", "<html>Bad Gateway</html>", null);
 		assert.equal(translateError(EN, result.error), "Unsplash Error: 502, Bad Gateway");
 	});
 
 	it("returns an error for a successful status whose body is not a photo", () => {
 		for (const body of ["<html></html>", "null", "42", "{}"]) {
-			assert.ok(mod.parseUnsplashResponse(200, "OK", body, null).error, body);
+			assert.ok(mod.unsplash.parseUnsplashResponse(200, "OK", body, null).error, body);
 		}
 	});
 });
@@ -132,7 +158,7 @@ describe("WallberryTheme parseUnsplashResponse", () => {
 describe("WallberryTheme fetchPhoto", () => {
 	it("shows the photo of a successful response", async () => {
 		const {mod, timers, requests} = createModule();
-		await mod.fetchPhoto();
+		await mod.unsplash.fetchPhoto();
 		assert.equal(JSON.stringify(mod.photos), JSON.stringify([PHOTO]));
 		assert.equal(mod.photoError, null);
 		assert.deepEqual(timers, []);
@@ -142,7 +168,7 @@ describe("WallberryTheme fetchPhoto", () => {
 	for (const [status, body] of [[403, "Rate Limit Exceeded"], [502, "<html>Bad Gateway</html>"], [200, "not json"]]) {
 		it(`shows an error and schedules the next fetch after a ${status} response that is not JSON`, async () => {
 			const {mod, timers} = createModule(() => new Response(body, {status}));
-			await mod.fetchPhoto();
+			await mod.unsplash.fetchPhoto();
 			assert.ok(mod.photoError);
 			assert.deepEqual(timers, [mod.config.updateInterval]);
 		});
@@ -150,17 +176,17 @@ describe("WallberryTheme fetchPhoto", () => {
 
 	it("names the rate limit from the response header", async () => {
 		const {mod} = createModule(() => new Response("", {status: 403, headers: {"X-Ratelimit-Remaining": "0"}}));
-		await mod.fetchPhoto();
-		assert.equal(mod.photoError.key, "ERROR_RATE_LIMIT");
+		await mod.unsplash.fetchPhoto();
+		assert.equal(mod.photoError.message, EN.ERROR_RATE_LIMIT);
 	});
 
 	it("gives up on a request after a timeout and schedules the next fetch", async () => {
 		const {mod, timers, requests} = createModule(() => {
 			throw new DOMException("The operation timed out.", "TimeoutError");
 		});
-		await mod.fetchPhoto();
-		assert.equal(requests[0].options.signal.timeout, mod.requestTimeout);
-		assert.equal(translateError(EN, mod.photoError), "The Unsplash server did not answer within 30 seconds.");
+		await mod.unsplash.fetchPhoto();
+		assert.equal(requests[0].options.signal.timeout, mod.unsplash.requestTimeout);
+		assert.equal(mod.photoError.message, "The Unsplash server did not answer within 30 seconds.");
 		assert.deepEqual(timers, [mod.config.updateInterval]);
 	});
 
@@ -168,16 +194,15 @@ describe("WallberryTheme fetchPhoto", () => {
 		const {mod, timers} = createModule(() => {
 			throw new TypeError("Failed to fetch");
 		});
-		await mod.fetchPhoto();
-		assert.equal(mod.photoError.key, "ERROR_CONNECTION");
+		await mod.unsplash.fetchPhoto();
+		assert.equal(mod.photoError.message, EN.ERROR_CONNECTION);
 		assert.deepEqual(timers, [mod.config.updateInterval]);
 	});
 });
 
 describe("WallberryTheme photoSource", () => {
-	const {mod} = createModule();
-	mod.config = {...mod.config, queries: ["mountains"], collections: "1538150"};
-	const source = (payload) => JSON.parse(JSON.stringify(mod.photoSource(payload)));
+	const {mod} = createModule(undefined, {}, {queries: ["mountains"], collections: "1538150"});
+	const source = (payload) => JSON.parse(JSON.stringify(mod.unsplash.photoSource(payload)));
 
 	it("uses the configured queries and collections without a payload", () => {
 		for (const payload of [undefined, null, {}, "text", {queries: null, collections: undefined}]) {
@@ -206,9 +231,7 @@ describe("WallberryTheme WALLBERRY_FETCH_PHOTO notification", () => {
 	const INTERVAL = 300 * 1000;
 
 	function createConfiguredModule(answer = undefined) {
-		const created = createModule(answer);
-		created.mod.config = {...created.mod.config, updateInterval: INTERVAL, queries: ["mountains"], collections: "1538150"};
-		return created;
+		return createModule(answer, {}, {updateInterval: INTERVAL, queries: ["mountains"], collections: "1538150"});
 	}
 
 	it("fetches right away with the payload's query instead of the configured values", () => {
@@ -238,8 +261,8 @@ describe("WallberryTheme WALLBERRY_FETCH_PHOTO notification", () => {
 	it("schedules the next automatic change a full updateInterval later, with one pending timer", async () => {
 		const {mod, timers, pending, clock} = createConfiguredModule();
 		mod.config.autoDimOn = false;
-		delete mod.processPhoto; // use the module's own, which schedules the next fetch
-		mod.scheduleFetch(INTERVAL);
+		delete mod.unsplash.processPhoto; // use the module's own, which schedules the next fetch
+		mod.unsplash.scheduleFetch(INTERVAL);
 		clock.now = 200 * 1000;
 		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
 		assert.equal(pending.size, 0);
@@ -247,14 +270,14 @@ describe("WallberryTheme WALLBERRY_FETCH_PHOTO notification", () => {
 		mod.img.onload();
 		assert.deepEqual(timers, [INTERVAL, INTERVAL]);
 		assert.equal(pending.size, 1);
-		assert.equal(mod.nextFetchTime, 200 * 1000 + INTERVAL);
+		assert.equal(mod.unsplash.nextFetchTime, 200 * 1000 + INTERVAL);
 	});
 
 	it("shows only the photo of the latest of several quick requests", async () => {
 		const answers = [];
 		const {mod, timers} = createConfiguredModule(() => new Promise((resolve) => answers.push(resolve)));
-		const older = mod.fetchPhoto(mod.photoSource({queries: ["sports"]}));
-		const newer = mod.fetchPhoto(mod.photoSource({queries: ["news"]}));
+		const older = mod.unsplash.fetchPhoto(mod.unsplash.photoSource({queries: ["sports"]}));
+		const newer = mod.unsplash.fetchPhoto(mod.unsplash.photoSource({queries: ["news"]}));
 		await new Promise(setImmediate);
 		answers[1](new Response(JSON.stringify({...PHOTO, user: {name: "Newer"}})));
 		await newer;
@@ -267,8 +290,8 @@ describe("WallberryTheme WALLBERRY_FETCH_PHOTO notification", () => {
 	it("ignores an error of an older request", async () => {
 		const answers = [];
 		const {mod, timers} = createConfiguredModule(() => new Promise((resolve, reject) => answers.push({resolve, reject})));
-		const older = mod.fetchPhoto();
-		const newer = mod.fetchPhoto(mod.photoSource({queries: ["news"]}));
+		const older = mod.unsplash.fetchPhoto();
+		const newer = mod.unsplash.fetchPhoto(mod.unsplash.photoSource({queries: ["news"]}));
 		await new Promise(setImmediate);
 		answers[1].resolve(new Response(JSON.stringify(PHOTO)));
 		await newer;
@@ -278,17 +301,16 @@ describe("WallberryTheme WALLBERRY_FETCH_PHOTO notification", () => {
 		assert.deepEqual(timers, []);
 	});
 
-	it("ignores a photo of an older request that is still loading", async () => {
+	it("ignores a photo of an older request that finishes loading after the newer photo arrived", async () => {
 		const {mod} = createConfiguredModule();
 		mod.config.autoDimOn = false;
-		delete mod.processPhoto; // use the module's own
+		delete mod.unsplash.processPhoto; // use the source's own
 		mod.updateDom = () => {};
-		await mod.fetchPhoto();
+		await mod.unsplash.fetchPhoto();
 		const older = mod.img;
-		const newer = mod.fetchPhoto(mod.photoSource({queries: ["news"]}));
+		await mod.unsplash.fetchPhoto(mod.unsplash.photoSource({queries: ["news"]}));
 		older.onload();
 		assert.equal(mod.photoElement, null);
-		await newer;
 		mod.img.onload();
 		assert.equal(mod.photoElement, mod.img);
 	});
@@ -329,13 +351,12 @@ describe("WallberryTheme resume", () => {
 	 * createModule().
 	 */
 	function createShowingModule(config = {}, answer = undefined) {
-		const created = createModule(answer);
+		const created = createModule(answer, {}, {updateInterval: INTERVAL, ...config});
 		const {mod} = created;
-		mod.config = {...mod.config, updateInterval: INTERVAL, ...config};
 		mod.tints = [];
 		mod.setBackgroundTint = (swatch) => mod.tints.push(swatch);
 		mod.photoData = {color: "#336699"};
-		mod.scheduleFetch(INTERVAL);
+		mod.unsplash.scheduleFetch(INTERVAL);
 		created.timers.length = 0;
 		return created;
 	}
@@ -367,7 +388,7 @@ describe("WallberryTheme resume", () => {
 
 	it("leaves the next fetch to a fetch that is still running", () => {
 		const {mod, requests, timers} = createShowingModule({newPhotoOnResume: false}, () => new Promise(() => {}));
-		mod.fetchPhoto();
+		mod.unsplash.fetchPhoto();
 		mod.resume();
 		assert.equal(requests.length, 1);
 		assert.deepEqual(timers, []);
@@ -375,8 +396,8 @@ describe("WallberryTheme resume", () => {
 
 	it("schedules the next fetch when the photo fails to load", async () => {
 		const {mod, requests, timers, clock} = createShowingModule();
-		delete mod.processPhoto; // use the module's own
-		await mod.fetchPhoto();
+		delete mod.unsplash.processPhoto; // use the module's own
+		await mod.unsplash.fetchPhoto();
 		failToLoad(mod);
 		mod.suspend();
 		clock.now = 100 * 1000;
@@ -387,12 +408,12 @@ describe("WallberryTheme resume", () => {
 
 	it("keeps the shown photo, its tint and its author when the next photo fails to load", () => {
 		const {mod} = createShowingModule({autoDimOn: false});
-		delete mod.processPhoto; // use the module's own
+		delete mod.unsplash.processPhoto; // use the module's own
 		const shown = {urls: {raw: "https://images.unsplash.com/shown?x"}, color: "#aa0000", user: {name: "Alice"}};
 		const failed = {urls: {raw: "https://images.unsplash.com/failed?x"}, color: "#0000bb", user: {name: "Bob"}};
-		mod.processPhoto(shown);
+		mod.unsplash.processPhoto(shown);
 		mod.img.onload();
-		mod.processPhoto(failed);
+		mod.unsplash.processPhoto(failed);
 		failToLoad(mod);
 		const data = mod.getTemplateData();
 		assert.equal(data.photoData.authorName, "Alice");
@@ -404,22 +425,23 @@ describe("WallberryTheme resume", () => {
 
 	it("ignores a photo that finishes loading after a newer one started", () => {
 		const {mod, timers} = createShowingModule({autoDimOn: false});
-		delete mod.processPhoto; // use the module's own
-		mod.processPhoto({...PHOTO, user: {name: "Alice"}});
+		delete mod.unsplash.processPhoto; // use the module's own
+		mod.unsplash.processPhoto({...PHOTO, user: {name: "Alice"}});
 		const older = mod.img;
-		mod.processPhoto({...PHOTO, user: {name: "Bob"}});
+		mod.unsplash.processPhoto({...PHOTO, user: {name: "Bob"}});
 		mod.img.onload();
 		older.onload();
 		older.onerror();
 		assert.equal(mod.photoData.authorName, "Bob");
 		assert.equal(mod.photoElement, mod.img);
-		assert.deepEqual(timers, [INTERVAL]);
+		// The source schedules when it delivers a photo.
+		assert.deepEqual(timers, [INTERVAL, INTERVAL]);
 	});
 
 	it("starts no timer while suspended and leaves it to resume", async () => {
 		const {mod, timers, clock} = createShowingModule({autoDimOn: false});
-		delete mod.processPhoto; // use the module's own
-		const fetching = mod.fetchPhoto();
+		delete mod.unsplash.processPhoto; // use the module's own
+		const fetching = mod.unsplash.fetchPhoto();
 		mod.suspend();
 		await fetching;
 		mod.img.onload();
@@ -429,19 +451,18 @@ describe("WallberryTheme resume", () => {
 		assert.deepEqual(timers, [INTERVAL - 100 * 1000]);
 	});
 
-	it("takes the due time from when the photo loaded", () => {
+	it("takes the due time from when the photo is delivered", () => {
 		const {mod} = createModuleWithDocument();
 		const before = Date.now();
-		mod.processPhoto(PHOTO);
-		mod.img.onload();
-		assert.ok(mod.nextFetchTime >= before + mod.config.updateInterval);
-		assert.ok(mod.nextFetchTime <= Date.now() + mod.config.updateInterval);
+		mod.unsplash.processPhoto(PHOTO);
+		assert.ok(mod.unsplash.nextFetchTime >= before + mod.config.updateInterval);
+		assert.ok(mod.unsplash.nextFetchTime <= Date.now() + mod.config.updateInterval);
 	});
 
 	it("retries after an error at the scheduled time and sets no tint without a photo", () => {
 		const {mod, timers, clock, requests} = createShowingModule({newPhotoOnResume: false});
 		mod.photoData = null;
-		mod.processError({key: "ERROR_CONNECTION"});
+		mod.unsplash.processError({key: "ERROR_CONNECTION"});
 		timers.length = 0;
 		clock.now = 60 * 1000;
 		mod.resume();
@@ -491,18 +512,19 @@ describe("WallberryTheme stored photo", () => {
 	 * the browser has no localStorage.
 	 */
 	function createRestartedModule({config = {}, stored = null, storage = new FakeStorage(), answer = undefined} = {}) {
-		const created = createModule(answer, storage === null ? {} : {localStorage: storage});
+		const created = createModule(answer, storage === null ? {} : {localStorage: storage},
+			{updateInterval: INTERVAL, clearCacheOnStart: false, queries: ["mountains"], ...config});
 		const {mod} = created;
-		mod.config = {...mod.config, updateInterval: INTERVAL, clearCacheOnStart: false, queries: ["mountains"], ...config};
-		delete mod.processPhoto; // use the module's own
+		delete mod.unsplash.processPhoto; // use the source's own
 		if (stored !== null) {
-			storage.setItem(mod.storageKey, JSON.stringify({settings: mod.photoSettings(), ...stored}));
+			storage.setItem(mod.unsplash.storageKey, JSON.stringify({settings: mod.unsplash.photoSettings(), ...stored}));
 		}
 		return {...created, storage};
 	}
 
 	function storedRecord(storage, mod) {
-		const text = storage.getItem(mod.storageKey);
+		// start() replaces the source, whose key stays the same
+		const text = storage.getItem(mod.unsplash.storageKey);
 		return text === null ? null : JSON.parse(text);
 	}
 
@@ -510,6 +532,7 @@ describe("WallberryTheme stored photo", () => {
 		const {mod, requests, clock, timers} = createRestartedModule({stored: {photo: STORED, due: 400 * 1000}});
 		clock.now = 100 * 1000;
 		mod.start();
+		restore(mod);
 		assert.equal(mod.img.src, STORED.url);
 		assert.equal(mod.img.crossOrigin, "Anonymous");
 		mod.img.onload();
@@ -527,7 +550,9 @@ describe("WallberryTheme stored photo", () => {
 		mod.sendSocketNotification = () => {};
 		mod.start();
 		assert.equal(mod.img, null);
+		assert.equal(mod.unsplash.probe, null);
 		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		restore(mod);
 		assert.equal(mod.img.src, STORED.url);
 	});
 
@@ -535,10 +560,11 @@ describe("WallberryTheme stored photo", () => {
 		const {mod, requests, clock, timers} = createRestartedModule({config: {autoDimOn: false}, stored: {photo: STORED, due: INTERVAL}});
 		clock.now = 3 * INTERVAL;
 		mod.start();
+		restore(mod);
 		const restored = mod.img;
 		restored.onload();
 		assert.deepEqual(timers, [0]);
-		await mod.fetchPhoto(); // what the timer runs
+		await mod.unsplash.fetchPhoto(); // what the timer runs
 		assert.equal(requests.length, 1);
 		assert.equal(mod.photoElement, restored);
 		mod.img.onload();
@@ -552,10 +578,11 @@ describe("WallberryTheme stored photo", () => {
 		});
 		clock.now = INTERVAL;
 		mod.start();
+		restore(mod);
 		mod.img.onload();
-		await mod.fetchPhoto();
+		await mod.unsplash.fetchPhoto();
 		const data = mod.getTemplateData();
-		assert.equal(data.photoError.key, "ERROR_RATE_LIMIT");
+		assert.equal(data.photoError.message, EN.ERROR_RATE_LIMIT);
 		assert.equal(data.photoData.authorName, "Alice");
 		// The template shows a photo before an error.
 		const template = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.njk"), "utf8");
@@ -570,6 +597,7 @@ describe("WallberryTheme stored photo", () => {
 		mod.start();
 		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
 		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		restore(mod);
 		mod.img.onload();
 		assert.equal(mod.photoData.authorName, "Alice");
 		assert.equal(requests.length, 1);
@@ -582,15 +610,16 @@ describe("WallberryTheme stored photo", () => {
 			answer: () => new Response("Rate Limit Exceeded", {status: 403})
 		});
 		mod.start();
-		const restored = mod.img;
 		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
 		assert.equal(requests.length, 0);
+		restore(mod);
+		const restored = mod.img;
 		restored.onload();
 		assert.equal(requests.length, 1);
 		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
 		await new Promise(setImmediate);
 		const data = mod.getTemplateData();
-		assert.equal(data.photoError.key, "ERROR_RATE_LIMIT");
+		assert.equal(data.photoError.message, EN.ERROR_RATE_LIMIT);
 		assert.equal(data.photoElement, restored);
 	});
 
@@ -598,7 +627,7 @@ describe("WallberryTheme stored photo", () => {
 		const {mod, requests} = createRestartedModule({stored: {photo: STORED, due: INTERVAL}});
 		mod.start();
 		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
-		failToLoad(mod);
+		failToRestore(mod);
 		assert.equal(requests.length, 1);
 		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
 	});
@@ -607,17 +636,18 @@ describe("WallberryTheme stored photo", () => {
 		const {mod, requests} = createRestartedModule({config: {newPhotoOnResume: true}, stored: {photo: STORED, due: INTERVAL}});
 		mod.setBackgroundTint = () => {};
 		mod.start();
-		const restored = mod.img;
 		mod.suspend();
 		mod.resume();
 		assert.equal(requests.length, 0);
+		restore(mod);
+		const restored = mod.img;
 		restored.onload();
 		assert.equal(mod.photoElement, restored);
 		assert.equal(requests.length, 1);
 		assert.equal(new URL(requests[0].url).searchParams.get("query"), "mountains");
 	});
 
-	it("stores every photo that loads, with its due time", async () => {
+	it("stores every photo it delivers, with its due time", async () => {
 		const {mod, storage, clock} = createRestartedModule({config: {autoDimOn: false}});
 		mod.start();
 		await new Promise(setImmediate);
@@ -629,7 +659,7 @@ describe("WallberryTheme stored photo", () => {
 		await new Promise(setImmediate);
 		mod.img.onload();
 		assert.equal(storedRecord(storage, mod).due, 60 * 1000 + INTERVAL);
-		assert.equal(storedRecord(storage, mod).settings, mod.photoSettings());
+		assert.equal(storedRecord(storage, mod).settings, mod.unsplash.photoSettings());
 	});
 
 	it("discards the stored photo when an option that selects or sizes photos changed", () => {
@@ -648,12 +678,13 @@ describe("WallberryTheme stored photo", () => {
 		mod.config = {...mod.config, updateInterval: 60 * 1000, backgroundOpacity: 0.5};
 		mod.start();
 		assert.equal(requests.length, 0);
-		assert.equal(mod.img.src, STORED.url);
+		assert.equal(mod.unsplash.probe.src, STORED.url);
 	});
 
 	it("changes the stored photo no later than updateInterval after a start, also when it was due later", () => {
 		const {mod, timers} = createRestartedModule({stored: {photo: STORED, due: 24 * 60 * 60 * 1000}});
 		mod.start();
+		restore(mod);
 		mod.img.onload();
 		assert.deepEqual(timers, [INTERVAL]);
 	});
@@ -661,6 +692,7 @@ describe("WallberryTheme stored photo", () => {
 	it("does not dim a stored photo with autoDimOn: false", () => {
 		const {mod} = createRestartedModule({config: {autoDimOn: false}, stored: {photo: STORED, due: INTERVAL}});
 		mod.start();
+		restore(mod);
 		mod.img.onload();
 		assert.equal(mod.photoData.needsDimming, undefined);
 	});
@@ -668,6 +700,7 @@ describe("WallberryTheme stored photo", () => {
 	it("leaves a photo restored with autoDimOn: false to be checked for dimming once autoDimOn is on", () => {
 		const {mod, storage} = createRestartedModule({config: {autoDimOn: false}, stored: {photo: STORED, due: INTERVAL}});
 		mod.start();
+		restore(mod);
 		mod.img.onload();
 		// Stored without a result, a start with autoDimOn: true checks it.
 		assert.equal(typeof storedRecord(storage, mod).photo.needsDimming, "undefined");
@@ -676,7 +709,7 @@ describe("WallberryTheme stored photo", () => {
 	it("discards a stored photo whose image fails to load and fetches a new one", () => {
 		const {mod, requests, storage} = createRestartedModule({stored: {photo: STORED, due: INTERVAL}});
 		mod.start();
-		failToLoad(mod);
+		failToRestore(mod);
 		assert.equal(storedRecord(storage, mod), null);
 		assert.equal(requests.length, 1);
 		assert.equal(mod.photoData, null);
@@ -686,7 +719,7 @@ describe("WallberryTheme stored photo", () => {
 		for (const text of [null, "not json", "null", "42", JSON.stringify({photo: STORED})]) {
 			const {mod, requests, storage} = createRestartedModule();
 			if (text !== null) {
-				storage.setItem(mod.storageKey, text);
+				storage.setItem(mod.unsplash.storageKey, text);
 			}
 			mod.start();
 			assert.equal(requests.length, 1, text);
@@ -742,7 +775,7 @@ describe("WallberryTheme translations", () => {
 	});
 
 	it("has a text for every key the module and its template use", () => {
-		const sources = ["WallberryTheme.js", "WallberryTheme.njk"]
+		const sources = ["WallberryTheme.js", "WallberryTheme.njk", "unsplashSource.js"]
 			.map((file) => fs.readFileSync(path.join(REPO_ROOT, file), "utf8"))
 			.join("\n");
 		const used = [...sources.matchAll(/"((?:ERROR|PHOTO|LOADING)[A-Z_]*)"/g)].map((match) => match[1]);
@@ -775,7 +808,7 @@ class FakeStyle {
 function createModuleWithDocument() {
 	const html = {style: new FakeStyle()};
 	const body = {style: new FakeStyle()};
-	const scripts = loadScripts(["WallberryTheme.js"], {
+	const scripts = loadScripts(["unsplashSource.js", "WallberryTheme.js"], {
 		document: {
 			documentElement: html,
 			body: body,
@@ -789,13 +822,14 @@ function createModuleWithDocument() {
 	const mod = Object.create(definition);
 	mod.config = {...definition.defaults, unsplashAccessKey: "key", autoDimOn: false};
 	mod.updateDom = () => {};
+	addSource(mod);
 	return {mod, html, body};
 }
 
 describe("WallberryTheme background tint", () => {
 	it("keeps the photo's colour swatch for the tints", () => {
 		const {mod} = createModuleWithDocument();
-		mod.processPhoto(PHOTO);
+		mod.unsplash.processPhoto(PHOTO);
 		mod.img.onload();
 		assert.equal(mod.photoData.color, "#336699");
 	});
@@ -826,7 +860,7 @@ describe("WallberryTheme auto-dim", () => {
 	 */
 	function createModuleWithBars(config, barHeight = 100, dim = true) {
 		const calls = [];
-		const scripts = loadScripts(["WallberryTheme.js"], {
+		const scripts = loadScripts(["unsplashSource.js", "WallberryTheme.js"], {
 			document: {
 				createElement: () => ({style: {}}),
 				getElementsByClassName: (name) => {
@@ -851,11 +885,12 @@ describe("WallberryTheme auto-dim", () => {
 		const mod = Object.create(definition);
 		mod.config = {...definition.defaults, unsplashAccessKey: "key", ...config};
 		mod.updateDom = () => {};
+		addSource(mod);
 		return {mod, calls};
 	}
 
 	function loadPhoto(mod, height = 1920) {
-		mod.processPhoto(PHOTO);
+		mod.unsplash.processPhoto(PHOTO);
 		mod.img.naturalHeight = height;
 		mod.img.onload();
 	}
@@ -975,26 +1010,25 @@ describe("WallberryTheme photo without CORS header", () => {
 					return needsDimming(...args);
 				}
 			}
-		});
+		}, {updateInterval: INTERVAL, clearCacheOnStart: false});
 		const {mod} = created;
-		mod.config = {...mod.config, updateInterval: INTERVAL};
-		delete mod.processPhoto; // use the module's own
+		delete mod.unsplash.processPhoto; // use the source's own
 		return {...created, calls, storage};
 	}
 
 	function storedPhoto(storage, mod) {
-		return JSON.parse(storage.getItem(mod.storageKey)).photo;
+		return JSON.parse(storage.getItem(mod.unsplash.storageKey)).photo;
 	}
 
 	it("loads the photo with crossOrigin first", () => {
 		const {mod} = createLoadingModule();
-		mod.processPhoto(PHOTO);
+		mod.unsplash.processPhoto(PHOTO);
 		assert.equal(mod.img.crossOrigin, "Anonymous");
 	});
 
 	it("loads a photo that fails with crossOrigin once more without it", () => {
 		const {mod, log} = createLoadingModule();
-		mod.processPhoto(PHOTO);
+		mod.unsplash.processPhoto(PHOTO);
 		const first = mod.img;
 		first.onerror();
 		assert.notEqual(mod.img, first);
@@ -1005,7 +1039,7 @@ describe("WallberryTheme photo without CORS header", () => {
 
 	it("shows the second attempt at backgroundOpacity without the auto-dim check and warns with its URL", () => {
 		const {mod, calls, log, timers} = createLoadingModule();
-		mod.processPhoto(PHOTO);
+		mod.unsplash.processPhoto(PHOTO);
 		mod.img.onerror();
 		mod.img.onload();
 		assert.equal(mod.photoElement, mod.img);
@@ -1020,7 +1054,7 @@ describe("WallberryTheme photo without CORS header", () => {
 
 	it("stores a photo shown without the check without a dimming result", () => {
 		const {mod, storage} = createLoadingModule();
-		mod.processPhoto(PHOTO);
+		mod.unsplash.processPhoto(PHOTO);
 		mod.img.onerror();
 		mod.img.onload();
 		assert.ok(!("needsDimming" in storedPhoto(storage, mod)));
@@ -1029,7 +1063,9 @@ describe("WallberryTheme photo without CORS header", () => {
 	it("drops a known dimming result when a stored photo loads only without crossOrigin", () => {
 		const {mod, storage} = createLoadingModule();
 		const photo = {url: "https://images.unsplash.com/stored", color: "#aa0000", authorName: "Alice", needsDimming: true};
-		mod.loadPhoto(photo, () => mod.scheduleFetch(INTERVAL), () => {});
+		storage.setItem(mod.unsplash.storageKey, JSON.stringify({settings: mod.unsplash.photoSettings(), photo, due: INTERVAL}));
+		mod.start();
+		restore(mod);
 		mod.img.onerror();
 		mod.img.onload();
 		assert.equal(mod.photoData.needsDimming, undefined);
@@ -1038,11 +1074,11 @@ describe("WallberryTheme photo without CORS header", () => {
 
 	it("keeps the previous photo and schedules the next fetch when both attempts fail", () => {
 		const {mod, log, timers} = createLoadingModule();
-		mod.processPhoto({...PHOTO, user: {name: "Alice"}});
+		mod.unsplash.processPhoto({...PHOTO, user: {name: "Alice"}});
 		mod.img.onload();
 		const shown = mod.img;
 		timers.length = 0;
-		mod.processPhoto({...PHOTO, user: {name: "Bob"}});
+		mod.unsplash.processPhoto({...PHOTO, user: {name: "Bob"}});
 		failToLoad(mod);
 		assert.equal(mod.photoElement, shown);
 		assert.equal(mod.photoData.authorName, "Alice");
@@ -1053,25 +1089,25 @@ describe("WallberryTheme photo without CORS header", () => {
 
 	it("ignores a second attempt that finishes after a newer photo started", () => {
 		const {mod, timers} = createLoadingModule();
-		mod.processPhoto({...PHOTO, user: {name: "Alice"}});
+		mod.unsplash.processPhoto({...PHOTO, user: {name: "Alice"}});
 		mod.img.onerror();
 		const retry = mod.img;
-		mod.processPhoto({...PHOTO, user: {name: "Bob"}});
+		mod.unsplash.processPhoto({...PHOTO, user: {name: "Bob"}});
 		mod.img.onload();
 		retry.onload();
 		retry.onerror();
 		assert.equal(mod.photoData.authorName, "Bob");
 		assert.equal(mod.photoElement, mod.img);
-		assert.deepEqual(timers, [INTERVAL]);
+		// The source schedules when it delivers a photo.
+		assert.deepEqual(timers, [INTERVAL, INTERVAL]);
 	});
 
-	it("ignores a second attempt that finishes after a new fetch started", async () => {
+	it("ignores a second attempt that finishes after the photo of a new fetch arrived", async () => {
 		const {mod} = createLoadingModule();
-		mod.processPhoto({...PHOTO, user: {name: "Alice"}});
+		mod.unsplash.processPhoto({...PHOTO, user: {name: "Alice"}});
 		mod.img.onerror();
 		const retry = mod.img;
-		mod.processPhoto = () => {}; // the new fetch's photo is not loaded
-		await mod.fetchPhoto();
+		await mod.unsplash.fetchPhoto();
 		retry.onload();
 		assert.equal(mod.photoData, null);
 	});
@@ -1080,7 +1116,7 @@ describe("WallberryTheme photo without CORS header", () => {
 		const {mod, log, storage, timers} = createLoadingModule(() => {
 			throw new DOMException("The canvas has been tainted by cross-origin data.", "SecurityError");
 		});
-		mod.processPhoto(PHOTO);
+		mod.unsplash.processPhoto(PHOTO);
 		mod.img.onload();
 		assert.equal(mod.photoElement, mod.img);
 		assert.equal(mod.photoData.needsDimming, undefined);
@@ -1088,5 +1124,109 @@ describe("WallberryTheme photo without CORS header", () => {
 		assert.equal(log.warn.length, 1);
 		assert.match(log.warn[0], URL_PATTERN);
 		assert.deepEqual(timers, [INTERVAL]);
+	});
+});
+
+describe("WallberryTheme photo source interface", () => {
+	const INTERVAL = 300 * 1000;
+
+	/**
+	 * Creates the module as MagicMirror² starts it, with Electron's cache
+	 * to be cleared, storage, the tints it sets recorded and the source's
+	 * own processPhoto().
+	 */
+	function createStartingModule(config = {}) {
+		const storage = new FakeStorage();
+		const created = createModule(undefined, {localStorage: storage}, {updateInterval: INTERVAL, autoDimOn: false, ...config});
+		const {mod} = created;
+		mod.sendSocketNotification = () => {};
+		mod.tints = [];
+		mod.setBackgroundTint = (swatch) => mod.tints.push(swatch);
+		return {...created, storage};
+	}
+
+	it("keeps Unsplash's request, response, schedule and stored photo out of the theme", () => {
+		const theme = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.js"), "utf8");
+		for (const code of ["api.unsplash.com", "urls.raw", "fetch(", "setTimeout", "localStorage", "newPhotoOnResume:"]) {
+			assert.equal(theme.includes(code), code === "newPhotoOnResume:", code);
+		}
+	});
+
+	it("tells the source nothing before Electron's cache is cleared", () => {
+		const {mod, requests} = createStartingModule({newPhotoOnResume: true});
+		mod.start();
+		mod.suspend();
+		mod.resume();
+		assert.equal(requests.length, 0);
+		assert.equal(mod.unsplash.state, "new");
+		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		assert.equal(requests.length, 1);
+	});
+
+	it("lets a source of a theme hidden at the start deliver its first photo, then keeps it asleep", async () => {
+		const {mod, requests, timers, clock} = createStartingModule();
+		mod.start();
+		delete mod.unsplash.processPhoto; // start() created the source anew
+		mod.suspend();
+		mod.socketNotificationReceived("ELECTRON_CACHE_CLEARED");
+		assert.equal(requests.length, 1);
+		await new Promise(setImmediate);
+		mod.img.onload();
+		assert.equal(mod.photoData.authorName, "Jane");
+		assert.deepEqual(timers, []);
+		clock.now = 100 * 1000;
+		mod.resume();
+		assert.deepEqual(timers, [INTERVAL - 100 * 1000]);
+	});
+
+	it("starts the source at once with clearCacheOnStart: false", () => {
+		const {mod, requests} = createStartingModule({clearCacheOnStart: false});
+		mod.start();
+		assert.equal(mod.unsplash.state, "awake");
+		assert.equal(requests.length, 1);
+	});
+
+	it("ignores a fetch request that arrives before the module started", () => {
+		const {mod, requests} = createModule();
+		mod.unsplash = null;
+		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
+		assert.equal(requests.length, 0);
+	});
+
+	it("sends the source's name and the translated message with an error", async () => {
+		const {mod} = createModule(() => new Response("", {status: 500, statusText: "Server Error"}));
+		await mod.unsplash.fetchPhoto();
+		assert.equal(mod.photoError.source, "unsplash");
+		assert.equal(mod.photoError.message, "Unsplash Error: 500, Server Error");
+	});
+
+	it("shows a photo with its colour and author, and skips the auto-dim check with a known result", () => {
+		const {mod} = createModule(undefined, {}, {autoDimOn: true});
+		mod.receivePhoto({source: "test", url: "https://example.com/photo.jpg", color: "#123456", author: "Ann", needsDimming: true});
+		assert.equal(mod.img.src, "https://example.com/photo.jpg");
+		mod.img.onload(); // WBColor is not loaded: a check would not return true
+		assert.equal(mod.photoData.color, "#123456");
+		assert.equal(mod.photoData.authorName, "Ann");
+		assert.equal(mod.photoData.needsDimming, true);
+	});
+
+	it("does not dim a photo with autoDimOn: false, whatever its source knows", () => {
+		const {mod} = createModule(undefined, {}, {autoDimOn: false});
+		mod.receivePhoto({source: "test", url: "https://example.com/photo.jpg", needsDimming: true});
+		mod.img.onload();
+		assert.equal(mod.photoData.needsDimming, undefined);
+	});
+
+	it("shows the attribution only for a photo with an author", () => {
+		const template = fs.readFileSync(path.join(REPO_ROOT, "WallberryTheme.njk"), "utf8");
+		assert.match(template, /{% if photoData\.authorName %}\s*<div class="wb-unsplash-bg-attribution">{{ "PHOTO_BY"/);
+	});
+
+	it("delivers the first photo also after an asleep that came before the first awake", () => {
+		const {mod, requests} = createModule();
+		mod.unsplash.state = "new";
+		mod.unsplash.setThemeState("asleep");
+		mod.unsplash.setThemeState("awake");
+		assert.equal(requests.length, 1);
 	});
 });
