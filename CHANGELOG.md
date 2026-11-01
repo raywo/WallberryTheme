@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WB-weather's `classic-wallberry` template now shows the degree sign after the current temperature and the forecast's low and high temperatures as large as the numbers, in their font, instead of the smaller Weather Icons glyph ([#54](https://github.com/raywo/WallberryTheme/issues/54)).
 
 ### Fixed
+- WallberryTheme now shows a photo whose server sends no `Access-Control-Allow-Origin` header, at `backgroundOpacity` and without the `autoDimOn` check, instead of keeping the previous photo, and no longer stays at "Loading background photo..." when the `autoDimOn` check fails ([#60](https://github.com/raywo/WallberryTheme/issues/60)).
 - The bundled Rubik font now includes its bold weights up to 900, so bold text, e.g. with MagicMirror's `bold` class, shows Rubik's real bold instead of a bold the browser fakes by thickening the regular letters ([#57](https://github.com/raywo/WallberryTheme/issues/57)).
 - WallberryTheme keeps showing its photo and tries again after `updateInterval` when a new photo fails to load, instead of never changing the photo again ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
 - WallberryTheme no longer fetches photos while it is hidden when a fetch was still running as it was hidden ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
