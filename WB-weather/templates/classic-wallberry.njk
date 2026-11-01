@@ -1,7 +1,7 @@
 <div class="weather{% if weather %} weather--loaded{% endif %}">
 	{% if weather %}
 	<div class="weather__current">
-		<div class="current__temperature light">{{ weather.temp | round }}<i class="wi wi-degrees"></i><i class="wi {{ weather.wicon }} wi-current"></i>
+		<div class="current__temperature light">{{ weather.temp | round }}&deg;<i class="wi {{ weather.wicon }} wi-current"></i>
 		</div>
 		<div class="weather__description">{{ weather.longDescription }}</div>
 	</div>
@@ -15,7 +15,7 @@
 			{% endif %}
 			<div class="forecast__icon"><i class="wi {{ day.wicon }}"></i></div>
 			<div class="forecast__rainchance"><i class="wi {{ day.precipType | precipIcons }}"></i>{{day.precipChance | round }}%</div>
-			<div class="forecast__highlow">{{ day.minTemp | round }}<i class="wi wi-degrees"></i> &middot; {{ day.maxTemp | round }}<i class="wi wi-degrees"></i></div>
+			<div class="forecast__highlow">{{ day.minTemp | round }}&deg; &middot; {{ day.maxTemp | round }}&deg;</div>
 		</div>
 		{% endfor %}
 	</div>

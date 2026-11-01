@@ -3,6 +3,8 @@ Part of [WallberryTheme](../README.md), which describes the [installation](../RE
 
 The `WB-clock` module is a digital clock designed to complement the `WallberryTheme` module. It displays the local time and date, and can display the local time for as many other locales as you care to configure.
 
+Its text size follows WallberryTheme's `--wb-font-size`, as [Text size](../README.md#text-size) describes.
+
 ## Using the module
 
 To use this module, add it to the modules array in the `config/config.js` file:
