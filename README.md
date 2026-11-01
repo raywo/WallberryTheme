@@ -251,7 +251,7 @@ WallberryTheme shows the photos that its photo sources deliver. Its built-in sou
 - **Attribution:** a photo shows "Photo by" and its author if its source names one; "on Unsplash" only for photos from Unsplash.
 - **Auto-dim:** `autoDimOn` checks a photo only if the browser may read its pixels, that is if the photo's server sends an `Access-Control-Allow-Origin` header or the photo comes from MagicMirror's own server. Other photos are shown at `backgroundOpacity`, and the browser console logs a warning.
 - **Errors:** WallberryTheme shows a source's error message only while no photo is on screen; the next photo of any source replaces it.
-- **No photo:** if no source has delivered a photo 60 seconds after the start, WallberryTheme shows a message that it needs `unsplashAccessKey` or a module that delivers photos. The first photo replaces it.
+- **No photo:** if no source has delivered a photo that loads 60 seconds after the start, WallberryTheme shows a message that it needs `unsplashAccessKey` or a module that delivers photos. The first photo replaces it.
 
 To write a photo source yourself, see [Writing a photo source](#writing-a-photo-source).
 
@@ -314,7 +314,7 @@ WallberryTheme ignores a `WALLBERRY_PHOTO` without `source` and `url` as strings
 
 **`WALLBERRY_PHOTO_ERROR`** – `message` is shown as it is, so translate it into the user's `language` yourself. WallberryTheme shows it only while no photo is on screen; the next photo of any source replaces it.
 
-**Startup.** WallberryTheme sends the first `{state: "awake"}` once MagicMirror has started all modules and, with `clearCacheOnStart`, Electron's cache is cleared. Deliver your first photo when it arrives, not before: an image Electron cached on an earlier run may be shown without auto-dim. If WallberryTheme is hidden at the start, `{state: "asleep"}` follows right after the first awake; deliver the first photo anyway, so that it is there when WallberryTheme is shown. If no source delivers a photo within 60 seconds of the first awake, WallberryTheme shows the message that no photo source has delivered a photo.
+**Startup.** WallberryTheme sends the first `{state: "awake"}` once MagicMirror has started all modules and, with `clearCacheOnStart`, Electron's cache is cleared. Deliver your first photo when it arrives, not before: an image Electron cached on an earlier run may be shown without auto-dim. If WallberryTheme is hidden at the start, `{state: "asleep"}` follows right after the first awake; deliver the first photo anyway, so that it is there when WallberryTheme is shown. If no source delivers a photo that loads within 60 seconds of the first awake, WallberryTheme shows the message that no photo source has delivered a photo; a URL the mirror cannot load counts as no photo.
 
 **Sleep.** WallberryTheme sends `{state: "asleep"}` when it is hidden, e.g. by MMM-pages or a presence sensor, and `{state: "awake"}` when it is shown again. While it is asleep, fetch nothing, so that a hidden mirror does not use up a service's requests. On awake, your source decides whether a new photo is due. A photo delivered while WallberryTheme is asleep is loaded and shown once it is visible again.
 

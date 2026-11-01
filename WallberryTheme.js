@@ -29,7 +29,7 @@ Module.register("WallberryTheme", {
 	photoData: null,
 	photoElement: null,
 	photoError: null,
-	photoReceived: false, // true once any source delivered a photo
+	photoReceived: false, // true once a photo of any source has loaded
 	suspended: false, // true between suspend() and resume()
 	waitingForCache: false, // true from start() until Electron's cache is cleared
 	waitingForModules: false, // true from start() until MagicMirror² started all modules
@@ -128,7 +128,6 @@ Module.register("WallberryTheme", {
 	// photo: {source, url, color, author, needsDimming} from a source;
 	// the newest photo received is shown once its image has loaded
 	receivePhoto: function(photo) {
-		this.photoReceived = true;
 		this.loadPhoto({
 			source: photo.source,
 			url: photo.url,
@@ -253,6 +252,7 @@ Module.register("WallberryTheme", {
 				}
 				this.photoData = p;
 				this.photoElement = img;
+				this.photoReceived = true;
 				this.updateDom(2000);
 			};
 			img.onerror = () => {

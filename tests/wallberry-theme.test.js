@@ -1423,11 +1423,20 @@ describe("WallberryTheme photos from other modules", () => {
 		assert.match(DE.ERROR_NO_PHOTO, /Keine Fotoquelle/);
 	});
 
-	it("says nothing after 60 seconds when a photo arrived, even one still loading", () => {
+	it("says nothing after 60 seconds when a photo has loaded", () => {
 		const {mod, callbacks} = startModule({unsplashAccessKey: ""});
 		mod.notificationReceived("WALLBERRY_PHOTO", photo("folder", "http://localhost:8080/a.jpg"));
+		mod.img.onload();
 		callbacks[0]();
 		assert.equal(mod.photoError, null);
+	});
+
+	it("says after 60 seconds that no source delivered a photo when the only photo fails to load", () => {
+		const {mod, callbacks} = startModule({unsplashAccessKey: ""});
+		mod.notificationReceived("WALLBERRY_PHOTO", photo("folder", "/photos/a.jpg"));
+		failToLoad(mod);
+		callbacks[0]();
+		assert.equal(mod.getTemplateData().photoError.message, EN.ERROR_NO_PHOTO);
 	});
 
 	it("keeps a source's error after 60 seconds instead of the message, as with Unsplash today", () => {
