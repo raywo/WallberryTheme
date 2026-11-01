@@ -45,6 +45,15 @@ const CORE_KEYS = [
 const PHOTO = {urls: {raw: "https://images.unsplash.com/photo"}, color: "#336699", user: {name: "Jane"}};
 
 /**
+ * Fails the module's photo image to load: the attempt with crossOrigin
+ * and the second one without it.
+ */
+function failToLoad(mod) {
+	mod.img.onerror();
+	mod.img.onerror();
+}
+
+/**
  * Creates the WallberryTheme module the way MagicMirror² does, with the
  * DOM update stubbed out, timers recorded instead of run and a clock
  * that only moves when `clock.now` is set. `answer` stands in for the
@@ -368,7 +377,7 @@ describe("WallberryTheme resume", () => {
 		const {mod, requests, timers, clock} = createShowingModule();
 		delete mod.processPhoto; // use the module's own
 		await mod.fetchPhoto();
-		mod.img.onerror();
+		failToLoad(mod);
 		mod.suspend();
 		clock.now = 100 * 1000;
 		mod.resume();
@@ -384,7 +393,7 @@ describe("WallberryTheme resume", () => {
 		mod.processPhoto(shown);
 		mod.img.onload();
 		mod.processPhoto(failed);
-		mod.img.onerror();
+		failToLoad(mod);
 		const data = mod.getTemplateData();
 		assert.equal(data.photoData.authorName, "Alice");
 		assert.match(data.photoElement.src, /\/shown\?/);
@@ -589,7 +598,7 @@ describe("WallberryTheme stored photo", () => {
 		const {mod, requests} = createRestartedModule({stored: {photo: STORED, due: INTERVAL}});
 		mod.start();
 		mod.notificationReceived("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]});
-		mod.img.onerror();
+		failToLoad(mod);
 		assert.equal(requests.length, 1);
 		assert.equal(new URL(requests[0].url).searchParams.get("query"), "sports");
 	});
@@ -667,7 +676,7 @@ describe("WallberryTheme stored photo", () => {
 	it("discards a stored photo whose image fails to load and fetches a new one", () => {
 		const {mod, requests, storage} = createRestartedModule({stored: {photo: STORED, due: INTERVAL}});
 		mod.start();
-		mod.img.onerror();
+		failToLoad(mod);
 		assert.equal(storedRecord(storage, mod), null);
 		assert.equal(requests.length, 1);
 		assert.equal(mod.photoData, null);
@@ -937,5 +946,147 @@ describe("WallberryTheme tint styles", () => {
 		for (const name of used) {
 			assert.ok(definedNames(css.slice(0, supportsStart)).includes(name), name);
 		}
+	});
+});
+
+describe("WallberryTheme photo without CORS header", () => {
+	const INTERVAL = 300 * 1000;
+	const URL_PATTERN = /https:\/\/images\.unsplash\.com\/photo/;
+
+	/**
+	 * Creates the module with its own processPhoto(), storage, bar regions
+	 * and WBColor replaced by `needsDimming`, which records its calls.
+	 */
+	function createLoadingModule(needsDimming = () => true) {
+		const calls = [];
+		const storage = new FakeStorage();
+		const created = createModule(undefined, {
+			localStorage: storage,
+			document: {
+				createElement: () => ({style: {}}),
+				getElementsByClassName: () => [{
+					clientHeight: 100,
+					getBoundingClientRect: () => ({top: 60, bottom: 160})
+				}]
+			},
+			WBColor: {
+				needsDimming: (...args) => {
+					calls.push(args);
+					return needsDimming(...args);
+				}
+			}
+		});
+		const {mod} = created;
+		mod.config = {...mod.config, updateInterval: INTERVAL};
+		delete mod.processPhoto; // use the module's own
+		return {...created, calls, storage};
+	}
+
+	function storedPhoto(storage, mod) {
+		return JSON.parse(storage.getItem(mod.storageKey)).photo;
+	}
+
+	it("loads the photo with crossOrigin first", () => {
+		const {mod} = createLoadingModule();
+		mod.processPhoto(PHOTO);
+		assert.equal(mod.img.crossOrigin, "Anonymous");
+	});
+
+	it("loads a photo that fails with crossOrigin once more without it", () => {
+		const {mod, log} = createLoadingModule();
+		mod.processPhoto(PHOTO);
+		const first = mod.img;
+		first.onerror();
+		assert.notEqual(mod.img, first);
+		assert.equal(mod.img.crossOrigin, undefined);
+		assert.equal(mod.img.src, first.src);
+		assert.equal(log.error.length, 0);
+	});
+
+	it("shows the second attempt at backgroundOpacity without the auto-dim check and warns with its URL", () => {
+		const {mod, calls, log, timers} = createLoadingModule();
+		mod.processPhoto(PHOTO);
+		mod.img.onerror();
+		mod.img.onload();
+		assert.equal(mod.photoElement, mod.img);
+		assert.equal(mod.photoData.authorName, "Jane");
+		assert.equal(mod.photoData.needsDimming, undefined);
+		assert.equal(mod.img.style.opacity, mod.config.backgroundOpacity);
+		assert.equal(calls.length, 0);
+		assert.equal(log.warn.length, 1);
+		assert.match(log.warn[0], URL_PATTERN);
+		assert.deepEqual(timers, [INTERVAL]);
+	});
+
+	it("stores a photo shown without the check without a dimming result", () => {
+		const {mod, storage} = createLoadingModule();
+		mod.processPhoto(PHOTO);
+		mod.img.onerror();
+		mod.img.onload();
+		assert.ok(!("needsDimming" in storedPhoto(storage, mod)));
+	});
+
+	it("drops a known dimming result when a stored photo loads only without crossOrigin", () => {
+		const {mod, storage} = createLoadingModule();
+		const photo = {url: "https://images.unsplash.com/stored", color: "#aa0000", authorName: "Alice", needsDimming: true};
+		mod.loadPhoto(photo, () => mod.scheduleFetch(INTERVAL), () => {});
+		mod.img.onerror();
+		mod.img.onload();
+		assert.equal(mod.photoData.needsDimming, undefined);
+		assert.ok(!("needsDimming" in storedPhoto(storage, mod)));
+	});
+
+	it("keeps the previous photo and schedules the next fetch when both attempts fail", () => {
+		const {mod, log, timers} = createLoadingModule();
+		mod.processPhoto({...PHOTO, user: {name: "Alice"}});
+		mod.img.onload();
+		const shown = mod.img;
+		timers.length = 0;
+		mod.processPhoto({...PHOTO, user: {name: "Bob"}});
+		failToLoad(mod);
+		assert.equal(mod.photoElement, shown);
+		assert.equal(mod.photoData.authorName, "Alice");
+		assert.equal(log.error.length, 1);
+		assert.match(log.error[0], URL_PATTERN);
+		assert.deepEqual(timers, [INTERVAL]);
+	});
+
+	it("ignores a second attempt that finishes after a newer photo started", () => {
+		const {mod, timers} = createLoadingModule();
+		mod.processPhoto({...PHOTO, user: {name: "Alice"}});
+		mod.img.onerror();
+		const retry = mod.img;
+		mod.processPhoto({...PHOTO, user: {name: "Bob"}});
+		mod.img.onload();
+		retry.onload();
+		retry.onerror();
+		assert.equal(mod.photoData.authorName, "Bob");
+		assert.equal(mod.photoElement, mod.img);
+		assert.deepEqual(timers, [INTERVAL]);
+	});
+
+	it("ignores a second attempt that finishes after a new fetch started", async () => {
+		const {mod} = createLoadingModule();
+		mod.processPhoto({...PHOTO, user: {name: "Alice"}});
+		mod.img.onerror();
+		const retry = mod.img;
+		mod.processPhoto = () => {}; // the new fetch's photo is not loaded
+		await mod.fetchPhoto();
+		retry.onload();
+		assert.equal(mod.photoData, null);
+	});
+
+	it("shows the photo undimmed and warns when the auto-dim check throws", () => {
+		const {mod, log, storage, timers} = createLoadingModule(() => {
+			throw new DOMException("The canvas has been tainted by cross-origin data.", "SecurityError");
+		});
+		mod.processPhoto(PHOTO);
+		mod.img.onload();
+		assert.equal(mod.photoElement, mod.img);
+		assert.equal(mod.photoData.needsDimming, undefined);
+		assert.ok(!("needsDimming" in storedPhoto(storage, mod)));
+		assert.equal(log.warn.length, 1);
+		assert.match(log.warn[0], URL_PATTERN);
+		assert.deepEqual(timers, [INTERVAL]);
 	});
 });

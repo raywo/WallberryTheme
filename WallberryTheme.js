@@ -316,37 +316,68 @@ Module.register("WallberryTheme", {
 	// on the image unless it is already known. Calls onShown once the
 	// photo is on screen, onFailed if its image does not load.
 	loadPhoto: function(p, onShown, onFailed) {
-		// A fresh image per photo, and photoData and photoElement only
+		// A fresh image per attempt, and photoData and photoElement only
 		// change once it has loaded: the template, resume() and the tint
 		// read them, and must keep describing the photo on screen if this
 		// one fails to load. Only the latest image counts, should an
 		// earlier one finish after it.
-		const img = document.createElement("img");
-		this.img = img;
+		// readable: load with crossOrigin, so that auto-dim may read the
+		// pixels. The browser then refuses an image whose server sends no
+		// Access-Control-Allow-Origin header, and does not tell that apart
+		// from any other error, so every failed load is tried once more
+		// without crossOrigin; a missing image fails twice.
+		const load = (readable) => {
+			const img = document.createElement("img");
+			this.img = img;
 
-		img.style.opacity = this.config.backgroundOpacity;
-		img.onload = () => {
-			if (img !== this.img) {
-				return;
-			}
-			if (this.config.autoDimOn && typeof p.needsDimming !== "boolean") {
-				p.needsDimming = WBColor.needsDimming(img, this.getBarAreas(img.naturalHeight || img.height));
-			}
-			this.photoData = p;
-			this.photoElement = img;
-			this.updateDom(2000);
-			onShown();
-		};
-		img.onerror = () => {
-			if (img !== this.img) {
-				return;
-			}
-			Log.error("WallberryTheme: could not load the photo ", p.url);
-			onFailed();
-		};
+			img.style.opacity = this.config.backgroundOpacity;
+			img.onload = () => {
+				if (img !== this.img) {
+					return;
+				}
+				if (!readable) {
+					// Its pixels cannot be read: shown at backgroundOpacity and
+					// stored without a result, so that a restore checks it again.
+					p.needsDimming = undefined;
+					Log.warn("WallberryTheme: the photo's server does not allow reading it, showing it without auto-dim ", p.url);
+				} else if (this.config.autoDimOn && typeof p.needsDimming !== "boolean") {
+					p.needsDimming = this.checkDimming(img, p.url);
+				}
+				this.photoData = p;
+				this.photoElement = img;
+				this.updateDom(2000);
+				onShown();
+			};
+			img.onerror = () => {
+				if (img !== this.img) {
+					return;
+				}
+				if (readable) {
+					load(false);
+					return;
+				}
+				Log.error("WallberryTheme: could not load the photo ", p.url);
+				onFailed();
+			};
 
-		img.crossOrigin = "Anonymous"; // otherwise we'll get a security error if we attempt to draw this image on the canvas later (when we check whether it needs dimming)
-		img.src = p.url;
+			if (readable) {
+				img.crossOrigin = "Anonymous";
+			}
+			img.src = p.url;
+		};
+		load(true);
+	},
+
+	// Whether the loaded image needs dimming, or undefined if the check
+	// fails, e.g. on a canvas the browser considers tainted. A failed
+	// check must not keep the photo from being shown.
+	checkDimming: function(img, url) {
+		try {
+			return WBColor.needsDimming(img, this.getBarAreas(img.naturalHeight || img.height));
+		} catch (error) {
+			Log.warn("WallberryTheme: could not check whether the photo needs dimming, showing it undimmed ", url, error);
+			return undefined;
+		}
 	},
 
 	// The options that decide which photo Unsplash returns and how its
