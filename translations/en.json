@@ -1,5 +1,6 @@
 {
 	"PHOTO_BY": "Photo by {author} on Unsplash",
+	"PHOTO_BY_AUTHOR": "Photo by {author}",
 	"LOADING_PHOTO": "Loading background photo...",
 
 	"ERROR_TITLE": "Error Loading Background",
@@ -7,5 +8,6 @@
 	"ERROR_TIMEOUT": "The Unsplash server did not answer within {seconds} seconds.",
 	"ERROR_RATE_LIMIT": "The Unsplash rate limit is exceeded; demo access keys allow 50 requests per hour. The module tries again later.",
 	"ERROR_API": "The Unsplash API returned the error \"{errors}\"",
-	"ERROR_STATUS": "Unsplash Error: {status}, {statusText}"
+	"ERROR_STATUS": "Unsplash Error: {status}, {statusText}",
+	"ERROR_NO_PHOTO": "No photo source has delivered a photo. WallberryTheme needs an unsplashAccessKey or a module that delivers photos."
 }

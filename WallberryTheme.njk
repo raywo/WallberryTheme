@@ -2,7 +2,7 @@
 	{{ setBackgroundTint(photoData.color) }}
 
 	{% if photoData.authorName %}
-		<div class="wb-unsplash-bg-attribution">{{ "PHOTO_BY" | translate({author: photoData.authorName}) }}</div>
+		<div class="wb-unsplash-bg-attribution">{{ ("PHOTO_BY" if photoData.source == "unsplash" else "PHOTO_BY_AUTHOR") | translate({author: photoData.authorName}) }}</div>
 	{% endif %}
 	<img src="{{ photoElement.src }}" style="opacity: {{ config.brightImageOpacity if photoData.needsDimming else config.backgroundOpacity }};">
 

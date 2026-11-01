@@ -7,7 +7,7 @@
 
 Module.register("WallberryTheme", {
 	defaults: {
-		unsplashAccessKey: "", // REQUIRED
+		unsplashAccessKey: "", // the built-in Unsplash source runs only with a key
 
 		collections: "", // comma-separated list of Unsplash collection ids
 		queries: [], // list of search queries to search for
@@ -29,10 +29,13 @@ Module.register("WallberryTheme", {
 	photoData: null,
 	photoElement: null,
 	photoError: null,
+	photoReceived: false, // true once any source delivered a photo
 	suspended: false, // true between suspend() and resume()
 	waitingForCache: false, // true from start() until Electron's cache is cleared
-	unsplash: null, // the WBUnsplashSource, created in start()
+	waitingForModules: false, // true from start() until MagicMirror² started all modules
+	unsplash: null, // the WBUnsplashSource, created in start() with an unsplashAccessKey
 	img: null,
+	noPhotoDelay: 60 * 1000, // ms after the first awake until the message that no source delivered a photo
 	fadeMinHeight: 250, // px, the min-height of .wbfade in css/WallberryTheme.css
 
 	getStyles: function() {
@@ -57,18 +60,23 @@ Module.register("WallberryTheme", {
 
 	start: function() {
 		Log.info(`Starting module: ${this.name}`);
-		this.unsplash = this.createUnsplashSource();
+		// Without a key the Unsplash source would only fail: it requests
+		// nothing, and its stored photo stays unshown.
+		const key = this.config.unsplashAccessKey;
+		this.unsplash = typeof key === "string" && key.trim() !== "" ? this.createUnsplashSource() : null;
+		// MagicMirror² delivers notifications only once it started all
+		// modules: a state sent before would reach no other source.
+		this.waitingForModules = true;
 		if (this.config.clearCacheOnStart) {
 			this.waitingForCache = true;
 			this.sendSocketNotification("CLEAR_CACHE");
-		} else {
-			this.wakeSource();
 		}
 	},
 
-	// The theme talks to its photo source only through the interface
-	// described in unsplashSource.js: photos and errors come in, the
-	// theme state and fetch requests go out.
+	// The theme talks to its internal photo source only through the
+	// interface described in unsplashSource.js: photos and errors come
+	// in, the theme state and fetch requests go out. Other sources use the
+	// same interface by notification, see notificationReceived().
 	createUnsplashSource: function() {
 		return new WBUnsplashSource({
 			config: this.config,
@@ -79,31 +87,55 @@ Module.register("WallberryTheme", {
 	},
 
 	// The first awake, once Electron's cache is cleared: a cached image
-	// would fail the cross-origin check (delightedCrow/WallberryTheme#8).
+	// would fail the cross-origin check (delightedCrow/WallberryTheme#8),
+	// and once all modules started, so that every source receives it.
 	// A theme already suspended still lets the source deliver its first
 	// photo, and is asleep right after.
 	wakeSource: function() {
+		if (this.waitingForCache || this.waitingForModules) {
+			return;
+		}
 		this.sendThemeState("awake");
 		if (this.suspended) {
 			this.sendThemeState("asleep");
 		}
+		setTimeout(() => this.showNoPhotoMessage(), this.noPhotoDelay);
 	},
 
-	// state: "awake" or "asleep"; sent from the first awake on
+	// state: "awake" or "asleep", to the internal source and, as
+	// WALLBERRY_THEME_STATE, to all other sources; sent from the first
+	// awake on
 	sendThemeState: function(state) {
-		if (this.unsplash === null || this.waitingForCache) {
+		if (this.waitingForCache || this.waitingForModules) {
 			return;
 		}
-		this.unsplash.setThemeState(state);
+		if (this.unsplash !== null) {
+			this.unsplash.setThemeState(state);
+		}
+		this.sendNotification("WALLBERRY_THEME_STATE", {state: state});
+	},
+
+	// Tells the user, once the first sources had their time, that none of
+	// them delivered a photo; an error a source sent says more and stays.
+	showNoPhotoMessage: function() {
+		if (this.photoReceived || this.photoError !== null) {
+			return;
+		}
+		this.photoError = {source: this.name, message: this.translate("ERROR_NO_PHOTO")};
+		this.updateDom();
 	},
 
 	// photo: {source, url, color, author, needsDimming} from a source;
 	// the newest photo received is shown once its image has loaded
 	receivePhoto: function(photo) {
+		this.photoReceived = true;
 		this.loadPhoto({
+			source: photo.source,
 			url: photo.url,
-			color: photo.color,
-			authorName: photo.author,
+			// A colour or author of another type is left out, as if the
+			// source had not sent it.
+			color: typeof photo.color === "string" ? photo.color : undefined,
+			authorName: typeof photo.author === "string" ? photo.author : undefined,
 			// With autoDimOn: false the photo is not dimmed, whatever the
 			// source knows about it.
 			needsDimming: this.config.autoDimOn && typeof photo.needsDimming === "boolean" ? photo.needsDimming : undefined
@@ -114,7 +146,9 @@ Module.register("WallberryTheme", {
 	// shows it only while no photo is on screen
 	receiveError: function(error) {
 		this.photoError = error;
-		this.updateDom();
+		if (this.photoElement === null) {
+			this.updateDom();
+		}
 	},
 
 	getTemplate: function() {
@@ -135,6 +169,11 @@ Module.register("WallberryTheme", {
 	socketNotificationReceived: function(notification) {
 		switch(notification) {
 		case "ELECTRON_CACHE_CLEARED":
+			// The helper answers every browser, also when another one
+			// connects later: only the first answer wakes the sources.
+			if (!this.waitingForCache) {
+				break;
+			}
 			this.waitingForCache = false;
 			this.wakeSource();
 			break;
@@ -142,17 +181,48 @@ Module.register("WallberryTheme", {
 
 	},
 
-	// Another module asks for a new photo, e.g. MMM-pages' page change:
-	// sendNotification("WALLBERRY_FETCH_PHOTO", {queries: ["sports"]}).
-	// The source decides when it fetches.
+	// The notifications of the photo source contract, which the README
+	// documents for authors of a source. Changing a field or its timing
+	// breaks every source. MagicMirror² does not deliver a module's own
+	// notifications to itself, so the internal source is called directly.
 	notificationReceived: function(notification, payload) {
-		if (notification !== "WALLBERRY_FETCH_PHOTO" || this.unsplash === null) {
-			return;
+		switch (notification) {
+		case "ALL_MODULES_STARTED":
+			this.waitingForModules = false;
+			this.wakeSource();
+			break;
+		case "WALLBERRY_PHOTO":
+			if (!this.isFromSource(payload, "url")) {
+				Log.warn("WallberryTheme: ignoring a WALLBERRY_PHOTO without source and url as strings ", payload);
+				return;
+			}
+			this.receivePhoto(payload);
+			break;
+		case "WALLBERRY_PHOTO_ERROR":
+			if (!this.isFromSource(payload, "message")) {
+				Log.warn("WallberryTheme: ignoring a WALLBERRY_PHOTO_ERROR without source and message as strings ", payload);
+				return;
+			}
+			this.receiveError({source: payload.source, message: payload.message});
+			break;
+		case "WALLBERRY_FETCH_PHOTO":
+			// Other sources receive it from its sender, e.g. MMM-pages' page
+			// change: sendNotification("WALLBERRY_FETCH_PHOTO", {queries:
+			// ["sports"]}). The source decides when it fetches.
+			if (this.unsplash !== null) {
+				this.unsplash.requestPhoto(payload);
+			}
+			break;
 		}
-		this.unsplash.requestPhoto(payload);
 	},
 
-	// p: {url, color, authorName, needsDimming}; needsDimming is checked
+	// Whether payload names its source and the given field as strings
+	isFromSource: function(payload, field) {
+		return payload !== null && typeof payload === "object" &&
+			typeof payload.source === "string" && typeof payload[field] === "string";
+	},
+
+	// p: {source, url, color, authorName, needsDimming}; needsDimming is checked
 	// on the image unless it is already known.
 	loadPhoto: function(p) {
 		// A fresh image per attempt, and photoData and photoElement only
