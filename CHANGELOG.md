@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 4.1.0 - 2026-11-02
+WallberryTheme now shows photos from other modules as well as from Unsplash, and WB-folder shows your own photos from a folder. No config needs to change: an existing config keeps working as before.
+
 ### Added
 - Added WallberryTheme's `newPhotoOnResume` option: set it to `true` to fetch a new photo each time the module is shown again after being hidden ([#47](https://github.com/raywo/WallberryTheme/issues/47)).
 - Added the notification `WALLBERRY_FETCH_PHOTO`, with which another module makes WallberryTheme show a new photo right away, optionally with its own `queries` or `collections`, e.g. a photo that fits the page of MMM-pages ([#46](https://github.com/raywo/WallberryTheme/issues/46)).

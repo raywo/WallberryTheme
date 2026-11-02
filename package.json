@@ -1,6 +1,6 @@
 {
 	"name": "wallberrytheme",
-	"version": "4.0.0",
+	"version": "4.1.0",
 	"description": "A MagicMirror² theme that shows a random Unsplash photo or your own photos as the background, with the companion modules WB-clock, WB-weather and WB-folder.",
 	"keywords": [
 		"MagicMirror",
